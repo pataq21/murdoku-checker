@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Murdoku example",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "murdoku_checker.main",
+            "args": [
+                "inputs/example"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
