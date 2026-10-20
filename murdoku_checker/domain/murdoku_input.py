@@ -1,0 +1,48 @@
+from typing import Self
+
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from murdoku_checker.domain.cell import CellFeature
+from murdoku_checker.domain.map import Map
+from murdoku_checker.domain.people import People
+from murdoku_checker.domain.rule import AnyOf, Condition, FeatureElement, RoomElement
+from murdoku_checker.domain.rules import Rules
+
+
+class MurdokuInput(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    map: Map
+    people: People
+    rules: Rules
+
+    @model_validator(mode="after")
+    def validate_references(self) -> Self:
+        person_names = {person.name for person in self.people.people}
+        rooms = {cell.room for cell in self.map.cells}
+        features = {feature for cell in self.map.cells for feature in cell.features}
+
+        for rule in self.rules.rules:
+            if rule.person not in person_names:
+                raise ValueError(f"unknown person in rule: {rule.person}")
+            self._validate_condition_references(rule.condition, rooms, features)
+
+        return self
+
+    @classmethod
+    def _validate_condition_references(
+        cls,
+        condition: Condition,
+        rooms: set[str],
+        features: set[CellFeature],
+    ) -> None:
+        if isinstance(condition, AnyOf):
+            for nested_condition in condition.conditions:
+                cls._validate_condition_references(nested_condition, rooms, features)
+            return
+
+        element = condition.element
+        if isinstance(element, RoomElement) and element.value not in rooms:
+            raise ValueError(f"unknown room in rule: {element.value}")
+        if isinstance(element, FeatureElement) and element.value not in features:
+            raise ValueError(f"unknown feature in rule: {element.value.value}")

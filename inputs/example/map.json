@@ -3,22 +3,242 @@
     {
       "latitude": 0,
       "longitude": 0,
-      "has_carpet": true
+      "room": "comedor"
     },
     {
       "latitude": 0,
       "longitude": 1,
-      "has_plant": true
+      "room": "comedor",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 2,
+      "room": "comedor"
+    },
+    {
+      "latitude": 0,
+      "longitude": 3,
+      "room": "dormitorio",
+      "features": [
+        "bed"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 4,
+      "room": "dormitorio",
+      "features": [
+        "bed"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 5,
+      "room": "dormitorio",
+      "features": [
+        "wardrobe"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 0,
-      "has_sofa": true
+      "room": "comedor",
+      "features": [
+        "chair"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 1,
-      "has_chair": true
+      "room": "comedor",
+      "features": [
+        "table"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 2,
+      "room": "comedor"
+    },
+    {
+      "latitude": 1,
+      "longitude": 3,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 1,
+      "longitude": 4,
+      "room": "dormitorio",
+      "features": [
+        "plant"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 5,
+      "room": "dormitorio",
+      "features": [
+        "wardrobe"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 0,
+      "room": "comedor",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 1,
+      "room": "comedor",
+      "features": [
+        "table"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 2,
+      "room": "comedor"
+    },
+    {
+      "latitude": 2,
+      "longitude": 3,
+      "room": "cocina",
+      "features": [
+        "carpet"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 4,
+      "room": "cocina",
+      "features": [
+        "carpet"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 5,
+      "room": "cocina"
+    },
+    {
+      "latitude": 3,
+      "longitude": 0,
+      "room": "comedor",
+      "features": [
+        "plant"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 1,
+      "room": "comedor"
+    },
+    {
+      "latitude": 3,
+      "longitude": 2,
+      "room": "comedor"
+    },
+    {
+      "latitude": 3,
+      "longitude": 3,
+      "room": "cocina",
+      "features": [
+        "counter"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 4,
+      "room": "cocina",
+      "features": [
+        "counter"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 5,
+      "room": "cocina"
+    },
+    {
+      "latitude": 4,
+      "longitude": 0,
+      "room": "porche",
+      "features": [
+        "carpet"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 1,
+      "room": "porche",
+      "features": [
+        "carpet"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 2,
+      "room": "jardin_delantero"
+    },
+    {
+      "latitude": 4,
+      "longitude": 3,
+      "room": "jardin_delantero",
+      "features": [
+        "tree"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 4,
+      "room": "jardin_delantero"
+    },
+    {
+      "latitude": 4,
+      "longitude": 5,
+      "room": "jardin_delantero"
+    },
+    {
+      "latitude": 5,
+      "longitude": 0,
+      "room": "porche"
+    },
+    {
+      "latitude": 5,
+      "longitude": 1,
+      "room": "porche",
+      "features": [
+        "box"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 2,
+      "room": "jardin_delantero"
+    },
+    {
+      "latitude": 5,
+      "longitude": 3,
+      "room": "jardin_delantero"
+    },
+    {
+      "latitude": 5,
+      "longitude": 4,
+      "room": "jardin_delantero",
+      "features": [
+        "tree"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 5,
+      "room": "jardin_delantero"
     }
   ]
 }

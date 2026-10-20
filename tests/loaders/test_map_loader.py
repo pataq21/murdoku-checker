@@ -1,9 +1,11 @@
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
+from murdoku_checker.domain import CellFeature
 from murdoku_checker.loaders import load_map
 
 
@@ -17,16 +19,21 @@ def test_load_map_reads_and_validates_json(tmp_path: Path) -> None:
         tmp_path / "map.json",
         {
             "cells": [
-                {"latitude": 0, "longitude": 1, "has_plant": True},
-                {"latitude": 2, "longitude": 3},
+                {
+                    "latitude": 0,
+                    "longitude": 1,
+                    "room": "comedor",
+                    "features": ["plant"],
+                },
+                {"latitude": 2, "longitude": 3, "room": "cocina"},
             ]
         },
     )
 
     map_ = load_map(path)
 
-    assert map_.get_cell(0, 1).has_plant is True  # type: ignore[union-attr]
-    assert map_.get_cell(2, 3).has_chair is False  # type: ignore[union-attr]
+    assert map_.get_cell(0, 1).features == (CellFeature.PLANT,)  # type: ignore[union-attr]
+    assert map_.get_cell(2, 3).features == ()  # type: ignore[union-attr]
 
 
 def test_load_map_rejects_missing_file(tmp_path: Path) -> None:
@@ -47,7 +54,7 @@ def test_load_map_rejects_malformed_json(tmp_path: Path) -> None:
 def test_load_map_rejects_invalid_cell(tmp_path: Path) -> None:
     path = write_map(
         tmp_path / "map.json",
-        {"cells": [{"latitude": "0", "longitude": 1}]},
+        {"cells": [{"latitude": "0", "longitude": 1, "room": "comedor"}]},
     )
 
     with pytest.raises(ValidationError) as error:
@@ -61,8 +68,8 @@ def test_load_map_rejects_duplicate_coordinates(tmp_path: Path) -> None:
         tmp_path / "map.json",
         {
             "cells": [
-                {"latitude": 0, "longitude": 1},
-                {"latitude": 0, "longitude": 1},
+                {"latitude": 0, "longitude": 1, "room": "comedor"},
+                {"latitude": 0, "longitude": 1, "room": "comedor"},
             ]
         },
     )
@@ -85,6 +92,14 @@ def test_load_example_map() -> None:
 
     map_ = load_map(project_root / "inputs" / "example" / "map.json")
 
-    assert len(map_.cells) == 4
-    assert map_.get_cell(0, 0).has_carpet is True  # type: ignore[union-attr]
-    assert map_.get_cell(1, 1).has_chair is True  # type: ignore[union-attr]
+    assert len(map_.cells) == 36
+    assert Counter(cell.room for cell in map_.cells) == {
+        "comedor": 12,
+        "dormitorio": 6,
+        "cocina": 6,
+        "porche": 4,
+        "jardin_delantero": 8,
+    }
+    assert map_.get_cell(0, 1).features == (CellFeature.CHAIR,)  # type: ignore[union-attr]
+    assert map_.get_cell(1, 4).features == (CellFeature.PLANT,)  # type: ignore[union-attr]
+    assert map_.get_cell(5, 4).features == (CellFeature.TREE,)  # type: ignore[union-attr]

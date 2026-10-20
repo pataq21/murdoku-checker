@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from murdoku_checker.domain import Cell, Map
+from murdoku_checker.domain import Cell, CellFeature, Map
 
 
 def test_map_can_be_empty() -> None:
@@ -12,8 +12,18 @@ def test_map_can_be_empty() -> None:
 
 
 def test_map_stores_and_finds_cells() -> None:
-    first = Cell(latitude=0, longitude=1, has_plant=True)
-    second = Cell(latitude=3, longitude=2, has_chair=True)
+    first = Cell(
+        latitude=0,
+        longitude=1,
+        room="comedor",
+        features=[CellFeature.PLANT],
+    )
+    second = Cell(
+        latitude=3,
+        longitude=2,
+        room="cocina",
+        features=[CellFeature.CHAIR],
+    )
 
     map_ = Map(cells=[first, second])
 
@@ -25,8 +35,8 @@ def test_map_stores_and_finds_cells() -> None:
 
 def test_map_rejects_duplicate_coordinates() -> None:
     cells = [
-        Cell(latitude=1, longitude=2, has_carpet=True),
-        Cell(latitude=1, longitude=2, has_sofa=True),
+        Cell(latitude=1, longitude=2, room="comedor"),
+        Cell(latitude=1, longitude=2, room="cocina"),
     ]
 
     with pytest.raises(ValidationError, match="duplicate cell coordinates") as error:
@@ -58,7 +68,7 @@ def test_get_cell_validates_coordinates(coordinate: object) -> None:
 
 
 def test_map_is_immutable() -> None:
-    map_ = Map(cells=[Cell(latitude=0, longitude=0)])
+    map_ = Map(cells=[Cell(latitude=0, longitude=0, room="comedor")])
 
     with pytest.raises(ValidationError) as error:
         map_.cells = ()  # type: ignore[misc]
@@ -67,7 +77,12 @@ def test_map_is_immutable() -> None:
 
 
 def test_map_serializes_cells_without_private_index() -> None:
-    cell = Cell(latitude=1, longitude=2, has_sofa=True)
+    cell = Cell(
+        latitude=1,
+        longitude=2,
+        room="cocina",
+        features=[CellFeature.COUNTER],
+    )
     map_ = Map(cells=[cell])
 
     assert map_.model_dump() == {
@@ -75,10 +90,8 @@ def test_map_serializes_cells_without_private_index() -> None:
             {
                 "latitude": 1,
                 "longitude": 2,
-                "has_carpet": False,
-                "has_plant": False,
-                "has_sofa": True,
-                "has_chair": False,
+                "room": "cocina",
+                "features": (CellFeature.COUNTER,),
             },
         )
     }

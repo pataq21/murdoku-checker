@@ -1,0 +1,67 @@
+{
+    "rules": [
+        {
+            "person": "Alexander",
+            "condition": {
+                "type": "next_to",
+                "element": {
+                    "type": "feature",
+                    "value": "box"
+                }
+            }
+        },
+        {
+            "person": "Bella",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "feature",
+                    "value": "chair"
+                }
+            }
+        },
+        {
+            "person": "Carol",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "feature",
+                    "value": "carpet"
+                },
+                "is_unique": true
+            }
+        },
+        {
+            "person": "Dalia",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "room",
+                    "value": "dormitorio"
+                }
+            }
+        },
+        {
+            "person": "Evangeline",
+            "condition": {
+                "type": "any_of",
+                "conditions": [
+                    {
+                        "type": "next_to",
+                        "element": {
+                            "type": "feature",
+                            "value": "tree"
+                        }
+                    },
+                    {
+                        "type": "next_to",
+                        "element": {
+                            "type": "feature",
+                            "value": "plant"
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}

@@ -5,12 +5,20 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from murdoku_checker.domain import Map
-from murdoku_checker.loaders import load_map
+from murdoku_checker.domain import Map, MurdokuInput, People, Rules
+from murdoku_checker.loaders import load_map, load_people, load_rules
 
 
 def load_input_map(input_directory: Path) -> Map:
     return load_map(input_directory / "map.json")
+
+
+def load_input_people(input_directory: Path) -> People:
+    return load_people(input_directory / "people.json")
+
+
+def load_input_rules(input_directory: Path) -> Rules:
+    return load_rules(input_directory / "rules.json")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,7 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "input_directory",
         type=Path,
-        help="directory containing the input files, including map.json",
+        help=(
+            "directory containing the input files, including map.json, "
+            "people.json, and rules.json"
+        ),
     )
     return parser
 
@@ -30,6 +41,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         map_ = load_input_map(args.input_directory)
+        people = load_input_people(args.input_directory)
+        rules = load_input_rules(args.input_directory)
+        input_ = MurdokuInput(map=map_, people=people, rules=rules)
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
@@ -38,7 +52,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     map_path = args.input_directory / "map.json"
-    print(f"Loaded map from '{map_path}' with {len(map_.cells)} cells.")
+    people_path = args.input_directory / "people.json"
+    rules_path = args.input_directory / "rules.json"
+    print(f"Loaded map from '{map_path}' with {len(input_.map.cells)} cells.")
+    print(
+        f"Loaded people from '{people_path}' with {len(input_.people.people)} people."
+    )
+    print(f"Loaded rules from '{rules_path}' with {len(input_.rules.rules)} rules.")
     return 0
 
 
