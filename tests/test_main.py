@@ -1,7 +1,8 @@
 import json
 from pathlib import Path
+from unittest.mock import patch
 
-from murdoku_checker.domain import CellFeature
+from murdoku_checker.domain import CellFeature, MurdokuInput
 from murdoku_checker.main import (
     load_input_map,
     load_input_people,
@@ -123,8 +124,51 @@ def test_main_loads_map_and_prints_summary(
         f"Loaded map from '{input_directory / 'map.json'}' with 2 cells.\n"
         f"Loaded people from '{input_directory / 'people.json'}' with 2 people.\n"
         f"Loaded rules from '{input_directory / 'rules.json'}' with 1 rules.\n"
+        "2\n"
     )
     assert captured.err == ""
+
+
+def test_main_prints_solution_count(tmp_path: Path, capsys: object) -> None:
+    input_directory = tmp_path / "case"
+    write_map(
+        input_directory,
+        {"cells": [{"latitude": 0, "longitude": 0, "room": "comedor"}]},
+    )
+    write_people(
+        input_directory,
+        {"people": [{"name": "Alice", "gender": "Female"}]},
+    )
+    write_rules(input_directory, {"rules": []})
+
+    with patch("murdoku_checker.main.ModelBuilder") as builder_type:
+        builder_type.return_value.build.return_value.solve.return_value = 7
+        exit_code = main([str(input_directory)])
+    captured = capsys.readouterr()  # type: ignore[attr-defined]
+
+    assert exit_code == 0
+    assert captured.out.splitlines()[-1] == "7"
+
+
+def test_main_builds_optimization_model(tmp_path: Path) -> None:
+    input_directory = tmp_path / "case"
+    write_map(
+        input_directory,
+        {"cells": [{"latitude": 0, "longitude": 0, "room": "comedor"}]},
+    )
+    write_people(
+        input_directory,
+        {"people": [{"name": "Alice", "gender": "Female"}]},
+    )
+    write_rules(input_directory, {"rules": []})
+
+    with patch("murdoku_checker.main.ModelBuilder") as builder_type:
+        exit_code = main([str(input_directory)])
+
+    assert exit_code == 0
+    builder_type.return_value.build.assert_called_once()
+    input_ = builder_type.return_value.build.call_args.args[0]
+    assert isinstance(input_, MurdokuInput)
 
 
 def test_main_reports_missing_map(

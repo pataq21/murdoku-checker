@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["pydantic>=2,<3"]
+dependencies = [
+    "ortools>=9.15.6755",
+    "pydantic>=2,<3",
+]
 
 [project.scripts]
 murdoku-checker = "murdoku_checker.main:main"

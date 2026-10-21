@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from murdoku_checker.domain import Map, MurdokuInput, People, Rules
 from murdoku_checker.loaders import load_map, load_people, load_rules
+from murdoku_checker.optimization import ModelBuilder
 
 
 def load_input_map(input_directory: Path) -> Map:
@@ -44,6 +45,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         people = load_input_people(args.input_directory)
         rules = load_input_rules(args.input_directory)
         input_ = MurdokuInput(map=map_, people=people, rules=rules)
+        optimization_model = ModelBuilder().build(input_)
+        solutions = optimization_model.solve()
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
@@ -59,6 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"Loaded people from '{people_path}' with {len(input_.people.people)} people."
     )
     print(f"Loaded rules from '{rules_path}' with {len(input_.rules.rules)} rules.")
+    print(solutions)
     return 0
 
 
