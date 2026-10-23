@@ -117,19 +117,57 @@ El loader produce `FileNotFoundError` si el archivo no existe y
 
 ## Ejecucion
 
-El flujo actual recibe la carpeta completa de un caso, carga `map.json`,
-`people.json` y `rules.json`, y valida el conjunto como un `MurdokuInput`:
+El programa recibe la carpeta completa de un caso, carga `map.json`,
+`people.json` y `rules.json`, valida el conjunto y busca una solucion:
 
 ```bash
 uv run murdoku-checker inputs/example
 ```
 
-Tambien puede ejecutarse mediante el script raiz:
+Tambien puede ejecutarse como modulo:
 
 ```bash
-uv run python main.py inputs/example
+uv run python -m murdoku_checker.main inputs/example
 ```
 
-Por ahora el programa valida la estructura y las referencias de las reglas,
-pero no intenta resolverlas. La colocacion de personas y la resolucion se
-incorporaran en fases posteriores.
+La salida incluye el resumen de carga y uno de estos resultados:
+
+- `No solution.`: el caso no tiene solucion; no se imprime una cuadricula.
+- `Unique solution.`: hay exactamente una solucion.
+- `Multiple solutions (at least 2). Showing the first.`: hay varias soluciones.
+  La busqueda se detiene al encontrar la segunda y solo muestra la primera;
+  no calcula el total exacto.
+
+La solucion se muestra como una cuadricula con coordenadas y leyenda:
+
+```text
+Unique solution.
+First solution (rows = latitude, columns = longitude):
+      0       1
+0 | P1/R1 | #/R1  |
+1 | ./R2  |       |
+
+Legend:
+  . = unoccupied cell; # = blocked cell; blank = no cell
+  P1 = Alice (latitude=0, longitude=0)
+  R1 = cocina
+  R2 = comedor
+```
+
+Cada celda muestra `ocupante/habitacion`. Los identificadores `P1`, `P2`, etc.
+siguen el orden de las personas del archivo; la leyenda conserva sus nombres
+completos y posiciones. Las habitaciones se numeran por orden alfabetico.
+`.` indica una celda sin persona, `#` una celda no ocupable y un hueco indica
+que esa celda no existe. Solo se muestran las filas y columnas presentes en
+el mapa, con sus coordenadas originales, incluso si no son consecutivas.
+
+Un mapa vacio sin personas tiene una solucion vacia y se muestra como
+`First solution: empty map.`. Los errores de carga o resolucion se escriben
+en stderr y devuelven codigo 1; un caso valido sin solucion devuelve codigo 0.
+
+Desde Python, `OptimizationModel.solve()` sigue devolviendo el numero de
+soluciones encontradas (hasta 2 por defecto). `solve_with_solution()` devuelve
+un `SolveResult` con `count` y `first_solution`: un mapping inmutable de nombre
+a `(latitude, longitude)`, o `None` si no hay solucion. Ambos metodos aceptan
+`max_solutions=None` para contar todas, aunque solo se conserva la primera
+colocacion. Un limite de 1 no permite comprobar la unicidad.

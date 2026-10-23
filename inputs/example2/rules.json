@@ -1,0 +1,71 @@
+{
+    "rules": [
+        {
+            "person": "Ada",
+            "condition": {
+                "type": "next_to",
+                "element": {
+                    "type": "feature",
+                    "value": "plant"
+                }
+            }
+        },
+        {
+            "person": "Brigitte",
+            "condition": {
+                "type": "south_of",
+                "element": {
+                    "type": "person",
+                    "value": "Cameron"
+                }
+            }
+        },
+        {
+            "person": "Cameron",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "feature",
+                    "value": "carpet"
+                }
+            }
+        },
+        {
+            "person": "Darlene",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "feature",
+                    "value": "chair"
+                },
+                "is_unique": true
+            }
+        },
+        {
+            "person": "Edison",
+            "condition": {
+                "type": "in",
+                "element": {
+                    "type": "room",
+                    "value": "biblioteca"
+                }
+            }
+        },
+        {
+            "person": "Edison",
+            "condition": {
+                "type": "not_next_to",
+                "element": {
+                    "type": "feature",
+                    "value": "bookshelf"
+                }
+            }
+        },
+        {
+            "person": "Vinita",
+            "condition": {
+                "type": "alone_with_murderer"
+            }
+        }
+    ]
+}

@@ -18,6 +18,21 @@ class CellFeature(StrEnum):
     TREE = "tree"
     WARDROBE = "wardrobe"
 
+    @property
+    def is_occupiable(self) -> bool:
+        return self not in _NON_OCCUPIABLE_FEATURES
+
+
+_NON_OCCUPIABLE_FEATURES = frozenset(
+    {
+        CellFeature.BOX,
+        CellFeature.PLANT,
+        CellFeature.TABLE,
+        CellFeature.TREE,
+        CellFeature.WARDROBE,
+    }
+)
+
 
 class Cell(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
@@ -26,6 +41,10 @@ class Cell(BaseModel):
     longitude: Coordinate
     room: Room
     features: tuple[CellFeature, ...] = Field(default=(), strict=False)
+
+    @property
+    def is_occupiable(self) -> bool:
+        return all(feature.is_occupiable for feature in self.features)
 
     @field_validator("features")
     @classmethod

@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from murdoku_checker.domain import CellFeature, MurdokuInput
 from murdoku_checker.main import (
     load_input_map,
@@ -9,6 +11,7 @@ from murdoku_checker.main import (
     load_input_rules,
     main,
 )
+from murdoku_checker.optimization import SolveResult
 
 
 def write_map(input_directory: Path, data: object) -> Path:
@@ -120,16 +123,21 @@ def test_main_loads_map_and_prints_summary(
     captured = capsys.readouterr()  # type: ignore[attr-defined]
 
     assert exit_code == 0
-    assert captured.out == (
+    assert captured.out.startswith(
         f"Loaded map from '{input_directory / 'map.json'}' with 2 cells.\n"
         f"Loaded people from '{input_directory / 'people.json'}' with 2 people.\n"
         f"Loaded rules from '{input_directory / 'rules.json'}' with 1 rules.\n"
-        "2\n"
+        "Multiple solutions (at least 2). Showing the first.\n"
     )
+    assert captured.out.count("First solution (") == 1
+    assert "P1 = Alice" in captured.out
+    assert "P2 = Bob" in captured.out
     assert captured.err == ""
 
 
-def test_main_prints_solution_count(tmp_path: Path, capsys: object) -> None:
+def test_main_prints_unique_solution_without_solver_logs(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
     input_directory = tmp_path / "case"
     write_map(
         input_directory,
@@ -141,13 +149,17 @@ def test_main_prints_solution_count(tmp_path: Path, capsys: object) -> None:
     )
     write_rules(input_directory, {"rules": []})
 
-    with patch("murdoku_checker.main.ModelBuilder") as builder_type:
-        builder_type.return_value.build.return_value.solve.return_value = 7
-        exit_code = main([str(input_directory)])
-    captured = capsys.readouterr()  # type: ignore[attr-defined]
+    exit_code = main([str(input_directory)])
+    captured = capfd.readouterr()
 
     assert exit_code == 0
-    assert captured.out.splitlines()[-1] == "7"
+    assert "Unique solution.\nFirst solution (" in captured.out
+    assert "0 | P1/R1 |" in captured.out
+    assert "P1 = Alice (latitude=0, longitude=0)" in captured.out
+    assert "R1 = comedor" in captured.out
+    assert "Starting CP-SAT" not in captured.out
+    assert "CpSolverResponse" not in captured.out
+    assert captured.err == ""
 
 
 def test_main_builds_optimization_model(tmp_path: Path) -> None:
@@ -163,12 +175,58 @@ def test_main_builds_optimization_model(tmp_path: Path) -> None:
     write_rules(input_directory, {"rules": []})
 
     with patch("murdoku_checker.main.ModelBuilder") as builder_type:
+        model = builder_type.return_value.build.return_value
+        model.solve_with_solution.return_value = SolveResult(0, None)
         exit_code = main([str(input_directory)])
 
     assert exit_code == 0
     builder_type.return_value.build.assert_called_once()
     input_ = builder_type.return_value.build.call_args.args[0]
     assert isinstance(input_, MurdokuInput)
+    model.solve_with_solution.assert_called_once_with(max_solutions=2)
+
+
+@pytest.mark.parametrize("has_person", [False, True])
+def test_main_handles_empty_map(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], has_person: bool
+) -> None:
+    input_directory = tmp_path / "case"
+    write_map(input_directory, {"cells": []})
+    write_people(
+        input_directory,
+        {"people": [{"name": "Alice", "gender": "Female"}] if has_person else []},
+    )
+    write_rules(input_directory, {"rules": []})
+
+    assert main([str(input_directory)]) == 0
+    captured = capsys.readouterr()
+
+    if has_person:
+        assert captured.out.endswith("No solution.\n")
+        assert "First solution" not in captured.out
+    else:
+        assert captured.out.endswith("Unique solution.\nFirst solution: empty map.\n")
+    assert captured.err == ""
+
+
+def test_main_reports_solver_failure(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    input_directory = tmp_path / "case"
+    write_map(input_directory, {"cells": []})
+    write_people(input_directory, {"people": []})
+    write_rules(input_directory, {"rules": []})
+
+    with patch("murdoku_checker.main.ModelBuilder") as builder_type:
+        model = builder_type.return_value.build.return_value
+        model.solve_with_solution.side_effect = RuntimeError("inconclusive result")
+        assert main([str(input_directory)]) == 1
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert (
+        f"Error solving input '{input_directory}': inconclusive result" in captured.err
+    )
 
 
 def test_main_reports_missing_map(

@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from murdoku_checker.domain import Map, MurdokuInput, People, Rules
 from murdoku_checker.loaders import load_map, load_people, load_rules
 from murdoku_checker.optimization import ModelBuilder
+from murdoku_checker.solution_display import format_solution
 
 
 def load_input_map(input_directory: Path) -> Map:
@@ -24,7 +25,7 @@ def load_input_rules(input_directory: Path) -> Rules:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Load and validate a murdoku input directory."
+        description="Solve a murdoku case, display its first solution and check uniqueness."
     )
     parser.add_argument(
         "input_directory",
@@ -45,13 +46,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         people = load_input_people(args.input_directory)
         rules = load_input_rules(args.input_directory)
         input_ = MurdokuInput(map=map_, people=people, rules=rules)
-        optimization_model = ModelBuilder().build(input_)
-        solutions = optimization_model.solve()
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
             file=sys.stderr,
         )
+        return 1
+
+    try:
+        optimization_model = ModelBuilder().build(input_)
+        result = optimization_model.solve_with_solution(max_solutions=2)
+    except RuntimeError as error:
+        print(f"Error solving input '{args.input_directory}': {error}", file=sys.stderr)
         return 1
 
     map_path = args.input_directory / "map.json"
@@ -62,7 +68,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"Loaded people from '{people_path}' with {len(input_.people.people)} people."
     )
     print(f"Loaded rules from '{rules_path}' with {len(input_.rules.rules)} rules.")
-    print(solutions)
+    if result.first_solution is None:
+        print("No solution.")
+    else:
+        print(
+            "Unique solution."
+            if result.count == 1
+            else "Multiple solutions (at least 2). Showing the first."
+        )
+        print(format_solution(input_, result.first_solution))
     return 0
 
 

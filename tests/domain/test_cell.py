@@ -24,6 +24,33 @@ def test_cell_accepts_explicit_features() -> None:
     assert cell.features == (CellFeature.BED, CellFeature.PLANT)
 
 
+@pytest.mark.parametrize(
+    "feature",
+    [
+        CellFeature.BOX,
+        CellFeature.PLANT,
+        CellFeature.TABLE,
+        CellFeature.TREE,
+        CellFeature.WARDROBE,
+    ],
+)
+def test_cell_with_blocking_feature_is_not_occupiable(feature: CellFeature) -> None:
+    cell = Cell(latitude=0, longitude=0, room="comedor", features=(feature,))
+
+    assert not feature.is_occupiable
+    assert not cell.is_occupiable
+
+
+@pytest.mark.parametrize(
+    "features",
+    [(), (CellFeature.BED,), (CellFeature.CARPET, CellFeature.CHAIR)],
+)
+def test_cell_without_blocking_feature_is_occupiable(
+    features: tuple[CellFeature, ...],
+) -> None:
+    assert Cell(latitude=0, longitude=0, room="comedor", features=features).is_occupiable
+
+
 def test_cell_rejects_empty_room() -> None:
     with pytest.raises(ValidationError) as error:
         Cell(latitude=0, longitude=0, room="")
