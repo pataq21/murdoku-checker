@@ -9,13 +9,17 @@
       "latitude": 0,
       "longitude": 1,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 0,
       "longitude": 2,
       "room": "biblioteca",
-      "features": ["plant"]
+      "features": [
+        "plant"
+      ]
     },
     {
       "latitude": 0,
@@ -26,49 +30,65 @@
       "latitude": 0,
       "longitude": 4,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 0,
       "longitude": 5,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 0,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 1,
       "room": "biblioteca",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 2,
       "room": "biblioteca",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 3,
       "room": "biblioteca",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 4,
       "room": "biblioteca",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 1,
       "longitude": 5,
       "room": "biblioteca",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 2,
@@ -79,7 +99,9 @@
       "latitude": 2,
       "longitude": 1,
       "room": "circulo_de_debate",
-      "features": ["chair"]
+      "features": [
+        "chair"
+      ]
     },
     {
       "latitude": 2,
@@ -90,68 +112,82 @@
       "latitude": 2,
       "longitude": 3,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 2,
       "longitude": 4,
       "room": "biblioteca",
-      "features": ["bookshelf"]
+      "features": [
+        "bookshelf"
+      ]
     },
     {
       "latitude": 2,
-      "longitude": 5,
-      "room": "refrigerios"
-    },
-    {
-      "latitude": 3,
-      "longitude": 0,
-      "room": "circulo_de_debate",
-      "features": ["chair"]
-    },
-    {
-      "latitude": 3,
-      "longitude": 1,
-      "room": "circulo_de_debate"
-    },
-    {
-      "latitude": 3,
-      "longitude": 2,
-      "room": "circulo_de_debate",
-      "features": ["carpet"]
-    },
-    {
-      "latitude": 3,
-      "longitude": 3,
-      "room": "circulo_de_debate"
-    },
-    {
-      "latitude": 3,
-      "longitude": 4,
-      "room": "refrigerios"
-    },
-    {
-      "latitude": 3,
       "longitude": 5,
       "room": "refrigerios"
     },
     {
+      "latitude": 3,
+      "longitude": 0,
+      "room": "circulo_de_debate",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 1,
+      "room": "circulo_de_debate"
+    },
+    {
+      "latitude": 3,
+      "longitude": 2,
+      "room": "circulo_de_debate",
+      "features": [
+        "carpet"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 3,
+      "room": "circulo_de_debate"
+    },
+    {
+      "latitude": 3,
+      "longitude": 4,
+      "room": "refrigerios"
+    },
+    {
+      "latitude": 3,
+      "longitude": 5,
+      "room": "refrigerios"
+    },
+    {
       "latitude": 4,
       "longitude": 0,
       "room": "circulo_de_debate",
-      "features": ["chair"]
+      "features": [
+        "chair"
+      ]
     },
     {
       "latitude": 4,
       "longitude": 1,
       "room": "circulo_de_debate",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 4,
       "longitude": 2,
       "room": "circulo_de_debate",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 4,
@@ -162,19 +198,25 @@
       "latitude": 4,
       "longitude": 4,
       "room": "refrigerios",
-      "features": ["carpet"]
+      "features": [
+        "carpet"
+      ]
     },
     {
       "latitude": 4,
       "longitude": 5,
       "room": "refrigerios",
-      "features": ["counter"]
+      "features": [
+        "table"
+      ]
     },
     {
       "latitude": 5,
       "longitude": 0,
       "room": "circulo_de_debate",
-      "features": ["table"]
+      "features": [
+        "table"
+      ]
     },
     {
       "latitude": 5,
@@ -185,25 +227,33 @@
       "latitude": 5,
       "longitude": 2,
       "room": "circulo_de_debate",
-      "features": ["chair"]
+      "features": [
+        "chair"
+      ]
     },
     {
       "latitude": 5,
       "longitude": 3,
       "room": "circulo_de_debate",
-      "features": ["plant"]
+      "features": [
+        "plant"
+      ]
     },
     {
       "latitude": 5,
       "longitude": 4,
       "room": "refrigerios",
-      "features": ["counter"]
+      "features": [
+        "table"
+      ]
     },
     {
       "latitude": 5,
       "longitude": 5,
       "room": "refrigerios",
-      "features": ["counter"]
+      "features": [
+        "table"
+      ]
     }
   ]
 }

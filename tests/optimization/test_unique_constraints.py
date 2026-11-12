@@ -1,3 +1,4 @@
+import pytest
 from ortools.sat.python import cp_model
 
 from murdoku_checker.domain import (
@@ -8,6 +9,7 @@ from murdoku_checker.domain import (
     In,
     Map,
     MurdokuInput,
+    NotNextTo,
     People,
     RoomElement,
     Rule,
@@ -43,7 +45,7 @@ def count_solutions(*conditions: In | AnyOf) -> int:
     variables = VariableBuilder(model).build(input_)
     builder = ConstraintBuilder(model)
     builder.build_person_constraints(input_, variables)
-    builder.build_unique_constraints(input_, variables)
+    builder.build_rule_constraints(input_, variables)
     return OptimizationModel(input_, model, variables).solve(max_solutions=None)
 
 
@@ -86,3 +88,22 @@ def test_unique_in_nested_any_of_applies_to_its_branch() -> None:
     # Alice alone in her room: 4 cells * 2 for Bob. The carpet branch adds the
     # cases where Bob shares her room: 2 carpet cells * 2.
     assert count_solutions(condition) == 12
+
+
+@pytest.mark.parametrize(("nested", "expected"), [(False, 10), (True, 12)])
+def test_not_next_to_with_unique_in_any_of(nested: bool, expected: int) -> None:
+    not_next_to = NotNextTo(element=FeatureElement(value=CellFeature.CARPET))
+    condition = AnyOf(
+        conditions=(
+            room("a", is_unique=True),
+            (
+                AnyOf(conditions=(not_next_to, room("b", is_unique=True)))
+                if nested
+                else not_next_to
+            ),
+        )
+    )
+
+    # Not-next-to permits the carpet cells themselves; the unique branches
+    # additionally allow adjacent cells only when Bob is in the other room.
+    assert count_solutions(condition) == expected

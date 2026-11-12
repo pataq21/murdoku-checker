@@ -5,14 +5,18 @@ from murdoku_checker.domain import (
     AnyOf,
     Cell,
     CellFeature,
+    Direction,
     FeatureElement,
     Gender,
     In,
     Map,
     MurdokuInput,
     NextTo,
+    NotNextTo,
     People,
     Person,
+    PersonElement,
+    RelativePosition,
     RoomElement,
     Rule,
     Rules,
@@ -89,12 +93,26 @@ def test_murdoku_input_rejects_unknown_room() -> None:
         MurdokuInput(map=make_map(), people=make_people(), rules=rules)
 
 
-def test_murdoku_input_rejects_unknown_feature() -> None:
+@pytest.mark.parametrize("condition_type", [NextTo, NotNextTo])
+@pytest.mark.parametrize("nested", [False, True])
+def test_murdoku_input_rejects_unknown_feature(
+    condition_type: type[NextTo] | type[NotNextTo], nested: bool
+) -> None:
+    condition = condition_type(element=FeatureElement(value=CellFeature.BOX))
     rules = Rules(
         rules=[
             Rule(
                 person="Alex",
-                condition=NextTo(element=FeatureElement(value=CellFeature.BOX)),
+                condition=(
+                    AnyOf(
+                        conditions=(
+                            In(element=RoomElement(value="comedor")),
+                            condition,
+                        )
+                    )
+                    if nested
+                    else condition
+                ),
             )
         ]
     )
@@ -146,3 +164,35 @@ def test_murdoku_input_is_immutable() -> None:
         input_.rules = Rules()
 
     assert error.value.errors()[0]["type"] == "frozen_instance"
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_relative_position_references_must_exist(nested: bool) -> None:
+    relative = RelativePosition(
+        direction=Direction.SOUTH, element=PersonElement(value="Cameron")
+    )
+    rules = Rules(
+        rules=(
+            Rule(
+                person="Alex",
+                condition=(
+                    AnyOf(
+                        conditions=(
+                            In(element=RoomElement(value="comedor")),
+                            AnyOf(conditions=(relative, relative)),
+                        )
+                    )
+                    if nested
+                    else relative
+                ),
+            ),
+        )
+    )
+
+    with pytest.raises(ValidationError, match="unknown person in rule: Cameron"):
+        MurdokuInput(map=make_map(), people=make_people(), rules=rules)
+
+    people = People(
+        people=(*make_people().people, Person(name="Cameron", gender=Gender.FEMALE))
+    )
+    assert MurdokuInput(map=make_map(), people=people, rules=rules).rules is rules

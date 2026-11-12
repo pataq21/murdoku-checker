@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
@@ -22,6 +23,20 @@ class FeatureElement(BaseModel):
     value: CellFeature
 
 
+class PersonElement(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["person"] = "person"
+    value: Name
+
+
+class Direction(StrEnum):
+    NORTH = "north"
+    SOUTH = "south"
+    EAST = "east"
+    WEST = "west"
+
+
 Element: TypeAlias = Annotated[
     RoomElement | FeatureElement,
     Field(discriminator="type"),
@@ -35,12 +50,27 @@ class NextTo(BaseModel):
     element: FeatureElement
 
 
+class NotNextTo(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["not_next_to"] = "not_next_to"
+    element: FeatureElement
+
+
 class In(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
     type: Literal["in"] = "in"
     element: Element
     is_unique: StrictBool = False
+
+
+class RelativePosition(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["relative_position"] = "relative_position"
+    direction: Direction
+    element: PersonElement
 
 
 class AnyOf(BaseModel):
@@ -51,7 +81,7 @@ class AnyOf(BaseModel):
 
 
 Condition: TypeAlias = Annotated[
-    NextTo | In | AnyOf,
+    NextTo | NotNextTo | In | RelativePosition | AnyOf,
     Field(discriminator="type"),
 ]
 

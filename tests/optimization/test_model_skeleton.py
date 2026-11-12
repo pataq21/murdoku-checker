@@ -12,6 +12,7 @@ from murdoku_checker.domain import (
     Map,
     MurdokuInput,
     NextTo,
+    NotNextTo,
     People,
     RoomElement,
     Rule,
@@ -334,6 +335,112 @@ def test_variable_builder_next_to_ignores_adjacent_cells_in_other_rooms() -> Non
     variables = VariableBuilder(cp_model.CpModel()).build(make_next_to_input((rule,)))
 
     assert set(variables) == {("Alice", 1, 2)}
+
+
+@pytest.mark.parametrize(
+    ("feature", "expected"),
+    [
+        (CellFeature.BOX, {("Alice", 0, 2), ("Alice", 1, 2)}),
+        (
+            CellFeature.PLANT,
+            {("Alice", 0, 1), ("Alice", 0, 2), ("Alice", 1, 0)},
+        ),
+    ],
+)
+def test_not_next_to_is_exact_complement_on_occupiable_cells(
+    feature: CellFeature, expected: set[tuple[str, int, int]]
+) -> None:
+    element = FeatureElement(value=feature)
+    positive = Rule(person="Alice", condition=NextTo(element=element))
+    negative = Rule(person="Alice", condition=NotNextTo(element=element))
+    builder = VariableBuilder(cp_model.CpModel())
+
+    next_to = set(builder.build(make_next_to_input((positive,))))
+    not_next_to = set(builder.build(make_next_to_input((negative,))))
+    unrestricted = set(builder.build(make_next_to_input(())))
+
+    assert not_next_to == expected
+    assert next_to.isdisjoint(not_next_to)
+    assert next_to | not_next_to == unrestricted
+    model = ModelBuilder().build(make_next_to_input((negative,)))
+    assert model.solve(max_solutions=None) == len(expected)
+
+
+def test_next_to_and_not_next_to_are_contradictory_but_any_of_is_tautology() -> None:
+    positive = box_rule()
+    negative = Rule(
+        person="Alice",
+        condition=NotNextTo(element=FeatureElement(value=CellFeature.BOX)),
+    )
+
+    model = ModelBuilder().build(make_next_to_input((positive, negative)))
+    assert model.solve(max_solutions=None) == 0
+
+    either = Rule(
+        person="Alice",
+        condition=AnyOf(conditions=(positive.condition, negative.condition)),
+    )
+    model = ModelBuilder().build(make_next_to_input((either,)))
+    assert model.solve(max_solutions=None) == 4
+
+
+def test_not_next_to_intersects_with_room_rule() -> None:
+    rules = (
+        Rule(
+            person="Alice",
+            condition=NotNextTo(element=FeatureElement(value=CellFeature.PLANT)),
+        ),
+        Rule(person="Alice", condition=In(element=RoomElement(value="b"))),
+    )
+    model = ModelBuilder().build(make_next_to_input(rules))
+
+    assert set(model.variables) == {("Alice", 0, 2)}
+    assert model.solve_with_solution().first_solution == {"Alice": (0, 2)}
+
+
+def test_not_next_to_checks_every_feature_and_allows_diagonals_and_feature_cells() -> (
+    None
+):
+    cells = tuple(
+        Cell(
+            latitude=row,
+            longitude=column,
+            room="a",
+            features=(
+                (CellFeature.CHAIR,)
+                if (row, column) in {(0, 0), (0, 2)}
+                else (CellFeature.BOX,)
+                if (row, column) == (2, 2)
+                else ()
+            ),
+        )
+        for row in range(3)
+        for column in range(3)
+    )
+    input_ = MurdokuInput(
+        map=Map(cells=cells),
+        people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
+        rules=Rules(
+            rules=(
+                Rule(
+                    person="Alice",
+                    condition=NotNextTo(
+                        element=FeatureElement(value=CellFeature.CHAIR)
+                    ),
+                ),
+            )
+        ),
+    )
+    model = ModelBuilder().build(input_)
+
+    assert set(model.variables) == {
+        ("Alice", 0, 0),
+        ("Alice", 0, 2),
+        ("Alice", 1, 1),
+        ("Alice", 2, 0),
+        ("Alice", 2, 1),
+    }
+    assert model.solve(max_solutions=None) == 5
 
 
 def test_variable_builder_any_of_unites_next_to_cells() -> None:

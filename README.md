@@ -64,14 +64,58 @@ No puede haber dos personas con el mismo nombre.
 `rules.json` contiene restricciones asociadas a una persona. Cada regla tiene
 una unica `condition`, discriminada por `type`:
 
-- `next_to` exige estar junto a una feature.
+- `next_to` exige estar junto a una feature: distancia Manhattan 1 (sin
+  diagonales) y en la misma habitacion que el objeto.
+- `not_next_to` es su contrario exacto: excluye las celdas que cumplen
+  `next_to` para esa feature. Una celda diagonal o en otra habitacion no se
+  considera adyacente. Si hay varios objetos con esa feature, no puede estar
+  junto a ninguno de ellos en su misma habitacion.
 - `in` exige estar en una room o en una celda con una feature. `is_unique`
   indica si debe ser la unica persona en ese elemento y vale `false` por
   defecto.
+- `relative_position` compara la posicion con otra persona, indicada mediante
+  un elemento `person`. `direction` admite `north` (menor latitude), `south`
+  (mayor latitude), `west` (menor longitude) y `east` (mayor longitude).
+  No exige adyacencia, compartir habitacion ni coincidir en el otro eje.
 - `any_of` expresa una disyuncion de al menos dos condiciones y puede contener
   otras condiciones `any_of`.
 
-Los elementos son objetos tipados para diferenciar rooms de features.
+Los elementos son objetos tipados para diferenciar rooms, features y personas.
+Solo `relative_position` admite un elemento de tipo `person`, cuya referencia
+debe existir. Por ejemplo:
+
+```json
+{
+    "person": "Brigitte",
+    "condition": {
+        "type": "relative_position",
+        "direction": "south",
+        "element": {"type": "person", "value": "Cameron"}
+    }
+}
+```
+
+Las comparaciones son estrictas: una persona nunca esta al norte, sur, este
+u oeste de si misma. `relative_position` puede combinarse con las otras
+condiciones en `any_of`, tambien anidados. Varias reglas de una persona
+deben cumplirse simultaneamente.
+
+`next_to` y `not_next_to` solo admiten elementos de tipo `feature`. Por ejemplo:
+
+```json
+{
+    "person": "Ada",
+    "condition": {
+        "type": "not_next_to",
+        "element": {"type": "feature", "value": "plant"}
+    }
+}
+```
+
+`not_next_to` tambien puede aparecer en `any_of`, incluso anidados o combinados
+con condiciones `in` con `is_unique`. No hace ocupables las celdas bloqueadas:
+el filtro de ocupacion se aplica igualmente. Como es la negacion de la
+adyacencia, no prohibe por si sola estar sobre una feature ocupable.
 
 ```json
 {

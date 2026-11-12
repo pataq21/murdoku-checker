@@ -3,13 +3,22 @@ from types import MappingProxyType
 
 from ortools.sat.python import cp_model
 
-from murdoku_checker.domain import AnyOf, In, Map, MurdokuInput, NextTo
+from murdoku_checker.domain import (
+    AnyOf,
+    In,
+    Map,
+    MurdokuInput,
+    NextTo,
+    NotNextTo,
+    RelativePosition,
+)
 from murdoku_checker.domain.rule import Condition
 from murdoku_checker.optimization.model import Variables
 from murdoku_checker.optimization.positions import (
     Position,
     in_positions,
     next_to_positions,
+    not_next_to_positions,
 )
 
 
@@ -60,8 +69,13 @@ class VariableBuilder:
         """Positions satisfying the condition, or None if it does not restrict them."""
         if isinstance(condition, NextTo):
             return next_to_positions(condition, map_)
+        if isinstance(condition, NotNextTo):
+            return not_next_to_positions(condition, map_)
         if isinstance(condition, In):
             return in_positions(condition, map_)
+        if isinstance(condition, RelativePosition):
+            # The other person's position is not known until solving.
+            return None
         if isinstance(condition, AnyOf):
             union: set[Position] = set()
             for child in condition.conditions:

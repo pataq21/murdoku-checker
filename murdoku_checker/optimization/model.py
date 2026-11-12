@@ -6,7 +6,6 @@ from ortools.sat.python import cp_model
 
 from murdoku_checker.domain import MurdokuInput
 
-
 PersonCellKey = tuple[str, int, int]
 Variables = Mapping[PersonCellKey, cp_model.IntVar]
 Solution = Mapping[str, tuple[int, int]]
@@ -64,6 +63,7 @@ class OptimizationModel:
         means no solution was found.
         """
         solver = cp_model.CpSolver()
+        solver.parameters.log_search_progress = True
         solver.parameters.enumerate_all_solutions = True
         counter = _SolutionCounter(self.variables, max_solutions)
 

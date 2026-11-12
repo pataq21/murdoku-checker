@@ -5,7 +5,13 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from murdoku_checker.domain.cell import CellFeature
 from murdoku_checker.domain.map import Map
 from murdoku_checker.domain.people import People
-from murdoku_checker.domain.rule import AnyOf, Condition, FeatureElement, RoomElement
+from murdoku_checker.domain.rule import (
+    AnyOf,
+    Condition,
+    FeatureElement,
+    PersonElement,
+    RoomElement,
+)
 from murdoku_checker.domain.rules import Rules
 
 
@@ -25,7 +31,9 @@ class MurdokuInput(BaseModel):
         for rule in self.rules.rules:
             if rule.person not in person_names:
                 raise ValueError(f"unknown person in rule: {rule.person}")
-            self._validate_condition_references(rule.condition, rooms, features)
+            self._validate_condition_references(
+                rule.condition, rooms, features, person_names
+            )
 
         return self
 
@@ -35,13 +43,18 @@ class MurdokuInput(BaseModel):
         condition: Condition,
         rooms: set[str],
         features: set[CellFeature],
+        person_names: set[str],
     ) -> None:
         if isinstance(condition, AnyOf):
             for nested_condition in condition.conditions:
-                cls._validate_condition_references(nested_condition, rooms, features)
+                cls._validate_condition_references(
+                    nested_condition, rooms, features, person_names
+                )
             return
 
         element = condition.element
+        if isinstance(element, PersonElement) and element.value not in person_names:
+            raise ValueError(f"unknown person in rule: {element.value}")
         if isinstance(element, RoomElement) and element.value not in rooms:
             raise ValueError(f"unknown room in rule: {element.value}")
         if isinstance(element, FeatureElement) and element.value not in features:

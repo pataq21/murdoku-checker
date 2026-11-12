@@ -13,7 +13,8 @@
         {
             "person": "Brigitte",
             "condition": {
-                "type": "south_of",
+                "type": "relative_position",
+                "direction": "south",
                 "element": {
                     "type": "person",
                     "value": "Cameron"
@@ -59,12 +60,6 @@
                     "type": "feature",
                     "value": "bookshelf"
                 }
-            }
-        },
-        {
-            "person": "Vinita",
-            "condition": {
-                "type": "alone_with_murderer"
             }
         }
     ]

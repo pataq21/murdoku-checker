@@ -1,4 +1,4 @@
-from murdoku_checker.domain import Cell, In, Map, NextTo, RoomElement
+from murdoku_checker.domain import Cell, In, Map, NextTo, NotNextTo, RoomElement
 
 Position = tuple[int, int]
 
@@ -15,7 +15,7 @@ def in_positions(condition: In, map_: Map) -> frozenset[Position]:
     return frozenset((cell.latitude, cell.longitude) for cell in matches)
 
 
-def next_to_positions(condition: NextTo, map_: Map) -> frozenset[Position]:
+def next_to_positions(condition: NextTo | NotNextTo, map_: Map) -> frozenset[Position]:
     """Cells at Manhattan distance 1 from the feature, in the same room."""
     positions: set[Position] = set()
     for cell in map_.cells:
@@ -30,3 +30,10 @@ def next_to_positions(condition: NextTo, map_: Map) -> frozenset[Position]:
             if neighbour is not None and neighbour.room == cell.room:
                 positions.add((latitude, longitude))
     return frozenset(positions)
+
+
+def not_next_to_positions(condition: NotNextTo, map_: Map) -> frozenset[Position]:
+    """All map cells except those satisfying next_to for the same feature."""
+    return frozenset(
+        (cell.latitude, cell.longitude) for cell in map_.cells
+    ) - next_to_positions(condition, map_)

@@ -17,6 +17,7 @@ class CellFeature(StrEnum):
     TABLE = "table"
     TREE = "tree"
     WARDROBE = "wardrobe"
+    BOOKSHELF = "bookshelf"
 
     @property
     def is_occupiable(self) -> bool:
@@ -30,6 +31,8 @@ _NON_OCCUPIABLE_FEATURES = frozenset(
         CellFeature.TABLE,
         CellFeature.TREE,
         CellFeature.WARDROBE,
+        CellFeature.BOOKSHELF,
+        CellFeature.COUNTER,
     }
 )
 

@@ -6,16 +6,23 @@ from pydantic import ValidationError
 from murdoku_checker.domain import (
     AnyOf,
     CellFeature,
+    Direction,
     FeatureElement,
     In,
     NextTo,
+    NotNextTo,
+    PersonElement,
+    RelativePosition,
     RoomElement,
     Rule,
 )
 
 
-def test_rule_accepts_next_to_feature() -> None:
-    condition = NextTo(element=FeatureElement(value=CellFeature.BOX))
+@pytest.mark.parametrize("condition_type", [NextTo, NotNextTo])
+def test_rule_accepts_adjacency_feature(
+    condition_type: type[NextTo] | type[NotNextTo],
+) -> None:
+    condition = condition_type(element=FeatureElement(value=CellFeature.BOX))
 
     rule = Rule(person="Alexander", condition=condition)
 
@@ -84,10 +91,11 @@ def test_any_of_requires_at_least_two_conditions() -> None:
     assert error.value.errors()[0]["type"] == "too_short"
 
 
-def test_next_to_rejects_room_element() -> None:
+@pytest.mark.parametrize("condition_type", ["next_to", "not_next_to"])
+def test_adjacency_rejects_room_element(condition_type: str) -> None:
     with pytest.raises(ValidationError) as error:
         Rule.model_validate_json(
-            '{"person":"Alex","condition":{"type":"next_to",'
+            '{"person":"Alex","condition":{"type":"' + condition_type + '",'
             '"element":{"type":"room","value":"comedor"}}}'
         )
 
@@ -112,12 +120,15 @@ def test_rule_rejects_unknown_fields() -> None:
     assert error.value.errors()[0]["type"] == "extra_forbidden"
 
 
-def test_rule_round_trips_json() -> None:
+@pytest.mark.parametrize("condition_type", [NextTo, NotNextTo])
+def test_rule_round_trips_json(
+    condition_type: type[NextTo] | type[NotNextTo],
+) -> None:
     rule = Rule(
         person="Evangeline",
         condition=AnyOf(
             conditions=[
-                NextTo(element=FeatureElement(value=CellFeature.TREE)),
+                condition_type(element=FeatureElement(value=CellFeature.TREE)),
                 NextTo(element=FeatureElement(value=CellFeature.PLANT)),
             ]
         ),
@@ -136,3 +147,64 @@ def test_rule_is_immutable() -> None:
         rule.person = "Bob"
 
     assert error.value.errors()[0]["type"] == "frozen_instance"
+
+
+@pytest.mark.parametrize("direction", list(Direction))
+def test_relative_position_round_trips_json(direction: Direction) -> None:
+    rule = Rule.model_validate_json(
+        json.dumps(
+            {
+                "person": "Brigitte",
+                "condition": {
+                    "type": "relative_position",
+                    "direction": direction.value,
+                    "element": {"type": "person", "value": "Cameron"},
+                },
+            }
+        )
+    )
+
+    assert isinstance(rule.condition, RelativePosition)
+    assert rule.condition.direction is direction
+    assert rule.condition.element == PersonElement(value="Cameron")
+    assert Rule.model_validate_json(rule.model_dump_json()) == rule
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        {
+            "type": "relative_position",
+            "element": {"type": "person", "value": "Cameron"},
+        },
+        {
+            "type": "relative_position",
+            "direction": "southwest",
+            "element": {"type": "person", "value": "Cameron"},
+        },
+        {
+            "type": "relative_position",
+            "direction": "south",
+            "element": {"type": "room", "value": "comedor"},
+        },
+        {
+            "type": "relative_position",
+            "direction": "south",
+            "element": {"type": "feature", "value": "plant"},
+        },
+        {
+            "type": "relative_position",
+            "direction": "south",
+            "element": {"type": "person", "value": ""},
+        },
+        {
+            "type": "in",
+            "element": {"type": "person", "value": "Cameron"},
+        },
+    ],
+)
+def test_relative_position_rejects_invalid_shape(condition: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        Rule.model_validate_json(
+            json.dumps({"person": "Brigitte", "condition": condition})
+        )
