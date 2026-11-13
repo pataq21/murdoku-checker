@@ -1,15 +1,21 @@
 # Murdoku Checker
 
-Cada problema se guarda en una carpeta independiente dentro de `inputs/`:
+Cada problema se guarda por dificultad dentro de `inputs/`:
 
 ```text
 inputs/
-└── example/
-		├── elements.json
-		├── map.json
-		├── people.json
-		└── rules.json
+├── so_easy/
+│   ├── example1/
+│   ├── example2/
+│   ├── example3/
+│   ├── example4/
+│   └── example5/
+└── so_difficult/
+    └── example6/
 ```
+
+Cada carpeta de ejemplo contiene `elements.json`, `map.json`, `people.json`,
+`rules.json` e `image.png`.
 
 ## Formato de los elementos
 
@@ -227,10 +233,10 @@ por las celdas del mapa.
 from murdoku_checker.domain import MurdokuInput
 from murdoku_checker.loaders import load_elements, load_map, load_people, load_rules
 
-map_ = load_map("inputs/example/map.json")
-elements = load_elements("inputs/example/elements.json")
-people = load_people("inputs/example/people.json")
-rules = load_rules("inputs/example/rules.json")
+map_ = load_map("inputs/so_easy/example1/map.json")
+elements = load_elements("inputs/so_easy/example1/elements.json")
+people = load_people("inputs/so_easy/example1/people.json")
+rules = load_rules("inputs/so_easy/example1/rules.json")
 input_ = MurdokuInput(
     map=map_,
     elements=elements,
@@ -249,13 +255,13 @@ El programa recibe la carpeta completa de un caso, carga `map.json`,
 `people.json` y `rules.json`, valida el conjunto y busca una solucion:
 
 ```bash
-uv run murdoku-checker inputs/example
+uv run murdoku-checker inputs/so_easy/example1
 ```
 
 Tambien puede ejecutarse como modulo:
 
 ```bash
-uv run python -m murdoku_checker.main inputs/example
+uv run python -m murdoku_checker.main inputs/so_easy/example1
 ```
 
 La salida incluye el resumen de carga y uno de estos resultados:

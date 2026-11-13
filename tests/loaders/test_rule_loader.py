@@ -87,7 +87,9 @@ def test_load_rules_rejects_unknown_fields(tmp_path: Path) -> None:
 def test_load_example_rules() -> None:
     project_root = Path(__file__).parents[2]
 
-    rules = load_rules(project_root / "inputs" / "example" / "rules.json")
+    rules = load_rules(
+        project_root / "inputs" / "so_easy" / "example1" / "rules.json"
+    )
 
     assert len(rules.rules) == 5
     assert isinstance(rules.rules[0].condition, NextTo)
@@ -97,7 +99,9 @@ def test_load_example_rules() -> None:
 
 def test_load_relative_position_rule_from_example2(tmp_path: Path) -> None:
     project_root = Path(__file__).parents[2]
-    source = project_root / "inputs" / "example2" / "rules.json"
+    source = (
+        project_root / "inputs" / "so_easy" / "example2" / "rules.json"
+    )
     data = json.loads(source.read_text(encoding="utf-8"))
     rule = next(rule for rule in data["rules"] if rule["person"] == "Brigitte")
     path = write_rules(tmp_path / "rules.json", {"rules": [rule]})

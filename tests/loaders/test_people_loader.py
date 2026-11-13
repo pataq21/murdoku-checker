@@ -84,7 +84,9 @@ def test_load_people_rejects_unknown_fields(tmp_path: Path) -> None:
 def test_load_example_people() -> None:
     project_root = Path(__file__).parents[2]
 
-    people = load_people(project_root / "inputs" / "example" / "people.json")
+    people = load_people(
+        project_root / "inputs" / "so_easy" / "example1" / "people.json"
+    )
 
     assert [person.name for person in people.people] == [
         "Alexander",

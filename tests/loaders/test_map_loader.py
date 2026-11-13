@@ -89,7 +89,9 @@ def test_load_map_rejects_unknown_fields(tmp_path: Path) -> None:
 def test_load_example_map() -> None:
     project_root = Path(__file__).parents[2]
 
-    map_ = load_map(project_root / "inputs" / "example" / "map.json")
+    map_ = load_map(
+        project_root / "inputs" / "so_easy" / "example1" / "map.json"
+    )
 
     assert len(map_.cells) == 36
     assert Counter(cell.room for cell in map_.cells) == {
