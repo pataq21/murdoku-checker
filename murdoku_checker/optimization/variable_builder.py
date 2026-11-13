@@ -4,18 +4,24 @@ from types import MappingProxyType
 from ortools.sat.python import cp_model
 
 from murdoku_checker.domain import (
+    AloneWith,
     AnyOf,
     In,
+    InCoordinate,
     Map,
     MurdokuInput,
     NextTo,
     NotNextTo,
+    NextToEmptyRoom,
+    OtherRoomOccupied,
     RelativePosition,
+    RoomRelation,
 )
 from murdoku_checker.domain.rule import Condition
 from murdoku_checker.optimization.model import Variables
 from murdoku_checker.optimization.positions import (
     Position,
+    in_coordinate_positions,
     in_positions,
     next_to_positions,
     not_next_to_positions,
@@ -30,15 +36,15 @@ class VariableBuilder:
         """Create one boolean variable per person and allowed cell.
 
         The variable is true when the person is located in that cell. Cells that
-        a rule of the person already rules out, or that hold a non-occupiable
-        feature (box, plant, table, tree, wardrobe), get no variable.
+        a rule of the person already rules out, or that hold an element marked
+        as non-occupiable in the input catalog, get no variable.
         """
         allowed_by_person = self._allowed_positions_by_person(input_)
         variables = {}
         for person in input_.people.people:
             allowed = allowed_by_person.get(person.name)
             for cell in input_.map.cells:
-                if not cell.is_occupiable:
+                if not input_.is_cell_occupiable(cell):
                     continue
                 position = (cell.latitude, cell.longitude)
                 if allowed is not None and position not in allowed:
@@ -73,7 +79,18 @@ class VariableBuilder:
             return not_next_to_positions(condition, map_)
         if isinstance(condition, In):
             return in_positions(condition, map_)
-        if isinstance(condition, RelativePosition):
+        if isinstance(condition, InCoordinate):
+            return in_coordinate_positions(condition, map_)
+        if isinstance(
+            condition,
+            (
+                AloneWith,
+                NextToEmptyRoom,
+                OtherRoomOccupied,
+                RelativePosition,
+                RoomRelation,
+            ),
+        ):
             # The other person's position is not known until solving.
             return None
         if isinstance(condition, AnyOf):

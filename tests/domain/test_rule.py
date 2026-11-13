@@ -4,15 +4,23 @@ import pytest
 from pydantic import ValidationError
 
 from murdoku_checker.domain import (
+    AloneWith,
     AnyOf,
-    CellFeature,
+    CoordinateAxis,
     Direction,
     FeatureElement,
+    FeatureTargetRelation,
+    Gender,
     In,
+    InCoordinate,
     NextTo,
+    NextToEmptyRoom,
     NotNextTo,
+    OtherRoomOccupied,
     PersonElement,
     RelativePosition,
+    RoomRelation,
+    RoomRelationKind,
     RoomElement,
     Rule,
 )
@@ -22,7 +30,7 @@ from murdoku_checker.domain import (
 def test_rule_accepts_adjacency_feature(
     condition_type: type[NextTo] | type[NotNextTo],
 ) -> None:
-    condition = condition_type(element=FeatureElement(value=CellFeature.BOX))
+    condition = condition_type(element=FeatureElement(value="box"))
 
     rule = Rule(person="Alexander", condition=condition)
 
@@ -65,6 +73,40 @@ def test_rule_accepts_unique_in_condition() -> None:
     assert rule.condition.is_unique is True
 
 
+@pytest.mark.parametrize("axis", list(CoordinateAxis))
+def test_in_coordinate_round_trips_json(axis: CoordinateAxis) -> None:
+    rule = Rule.model_validate_json(
+        json.dumps(
+            {
+                "person": "Corinne",
+                "condition": {
+                    "type": "in_coordinate",
+                    "axis": axis.value,
+                    "value": 4,
+                },
+            }
+        )
+    )
+
+    assert rule.condition == InCoordinate(axis=axis, value=4)
+    assert Rule.model_validate_json(rule.model_dump_json()) == rule
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        {"type": "in_coordinate", "axis": "diagonal", "value": 1},
+        {"type": "in_coordinate", "axis": "row", "value": -1},
+        {"type": "in_coordinate", "axis": "column", "value": "1"},
+    ],
+)
+def test_in_coordinate_rejects_invalid_shape(condition: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        Rule.model_validate(
+            {"person": "Corinne", "condition": condition}, strict=True
+        )
+
+
 def test_rule_accepts_nested_any_of_from_json() -> None:
     rule = Rule.model_validate_json(
         '{"person":"Evangeline","condition":{"type":"any_of","conditions":['
@@ -84,7 +126,7 @@ def test_any_of_requires_at_least_two_conditions() -> None:
     with pytest.raises(ValidationError) as error:
         AnyOf(
             conditions=[
-                NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+                NextTo(element=FeatureElement(value="plant")),
             ]
         )
 
@@ -113,7 +155,7 @@ def test_rule_rejects_unknown_fields() -> None:
     with pytest.raises(ValidationError) as error:
         Rule(
             person="Alex",
-            condition=NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+            condition=NextTo(element=FeatureElement(value="plant")),
             note="invalid",  # type: ignore[call-arg]
         )
 
@@ -128,8 +170,8 @@ def test_rule_round_trips_json(
         person="Evangeline",
         condition=AnyOf(
             conditions=[
-                condition_type(element=FeatureElement(value=CellFeature.TREE)),
-                NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+                condition_type(element=FeatureElement(value="tree")),
+                NextTo(element=FeatureElement(value="plant")),
             ]
         ),
     )
@@ -140,7 +182,7 @@ def test_rule_round_trips_json(
 def test_rule_is_immutable() -> None:
     rule = Rule(
         person="Alex",
-        condition=NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+        condition=NextTo(element=FeatureElement(value="plant")),
     )
 
     with pytest.raises(ValidationError) as error:
@@ -167,7 +209,105 @@ def test_relative_position_round_trips_json(direction: Direction) -> None:
     assert isinstance(rule.condition, RelativePosition)
     assert rule.condition.direction is direction
     assert rule.condition.element == PersonElement(value="Cameron")
+    assert rule.condition.offset is None
     assert Rule.model_validate_json(rule.model_dump_json()) == rule
+
+
+@pytest.mark.parametrize("direction", list(Direction))
+def test_relative_position_accepts_exact_offset(direction: Direction) -> None:
+    condition = RelativePosition(
+        direction=direction,
+        element=PersonElement(value="Donovan"),
+        offset=1,
+    )
+
+    assert condition.offset == 1
+    assert RelativePosition.model_validate_json(condition.model_dump_json()) == condition
+
+
+def test_relative_position_accepts_feature_target() -> None:
+    condition = RelativePosition(
+        direction=Direction.WEST,
+        element=FeatureElement(value="car"),
+        offset=3,
+    )
+
+    assert condition.element == FeatureElement(value="car")
+    assert condition.feature_relation is FeatureTargetRelation.IN
+
+
+def test_relative_position_accepts_next_to_feature_target() -> None:
+    condition = RelativePosition(
+        direction=Direction.NORTH,
+        element=FeatureElement(value="statue"),
+        offset=2,
+        feature_relation=FeatureTargetRelation.NEXT_TO,
+    )
+
+    assert condition.feature_relation is FeatureTargetRelation.NEXT_TO
+
+
+def test_relative_position_rejects_feature_relation_for_person() -> None:
+    with pytest.raises(
+        ValidationError, match="feature_relation requires a feature element"
+    ):
+        RelativePosition(
+            direction=Direction.NORTH,
+            element=PersonElement(value="Iliana"),
+            feature_relation=FeatureTargetRelation.NEXT_TO,
+        )
+
+
+@pytest.mark.parametrize("offset", [0, -1])
+def test_relative_position_rejects_non_positive_offset(offset: int) -> None:
+    with pytest.raises(ValidationError):
+        RelativePosition(
+            direction=Direction.SOUTH,
+            element=PersonElement(value="Donovan"),
+            offset=offset,
+        )
+
+
+@pytest.mark.parametrize("relation", list(RoomRelationKind))
+def test_room_relation_round_trips_json(relation: RoomRelationKind) -> None:
+    condition = RoomRelation(
+        relation=relation,
+        element=PersonElement(value="Donovan"),
+    )
+
+    assert RoomRelation.model_validate_json(condition.model_dump_json()) == condition
+
+
+def test_alone_with_round_trips_json() -> None:
+    condition = AloneWith(element=PersonElement(value="Iliana"))
+
+    assert AloneWith.model_validate_json(condition.model_dump_json()) == condition
+
+
+def test_next_to_empty_room_round_trips_json() -> None:
+    condition = NextToEmptyRoom()
+
+    assert NextToEmptyRoom.model_validate_json(condition.model_dump_json()) == condition
+
+
+def test_other_room_occupied_round_trips_json() -> None:
+    condition = OtherRoomOccupied(
+        rooms=("ascensor_a", "ascensor_b"),
+        gender=Gender.FEMALE,
+    )
+
+    assert (
+        OtherRoomOccupied.model_validate_json(condition.model_dump_json())
+        == condition
+    )
+
+
+def test_other_room_occupied_rejects_duplicate_rooms() -> None:
+    with pytest.raises(ValidationError, match="rooms must be different"):
+        OtherRoomOccupied(
+            rooms=("ascensor", "ascensor"),
+            gender=Gender.FEMALE,
+        )
 
 
 @pytest.mark.parametrize(
@@ -186,11 +326,6 @@ def test_relative_position_round_trips_json(direction: Direction) -> None:
             "type": "relative_position",
             "direction": "south",
             "element": {"type": "room", "value": "comedor"},
-        },
-        {
-            "type": "relative_position",
-            "direction": "south",
-            "element": {"type": "feature", "value": "plant"},
         },
         {
             "type": "relative_position",

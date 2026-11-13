@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from murdoku_checker.domain import Cell, CellFeature, Map
+from murdoku_checker.domain import Cell, Map
 
 
 def test_map_can_be_empty() -> None:
@@ -16,13 +16,13 @@ def test_map_stores_and_finds_cells() -> None:
         latitude=0,
         longitude=1,
         room="comedor",
-        features=[CellFeature.PLANT],
+        features=["plant"],
     )
     second = Cell(
         latitude=3,
         longitude=2,
         room="cocina",
-        features=[CellFeature.CHAIR],
+        features=["chair"],
     )
 
     map_ = Map(cells=[first, second])
@@ -81,7 +81,7 @@ def test_map_serializes_cells_without_private_index() -> None:
         latitude=1,
         longitude=2,
         room="cocina",
-        features=[CellFeature.COUNTER],
+        features=["counter"],
     )
     map_ = Map(cells=[cell])
 
@@ -91,7 +91,7 @@ def test_map_serializes_cells_without_private_index() -> None:
                 "latitude": 1,
                 "longitude": 2,
                 "room": "cocina",
-                "features": (CellFeature.COUNTER,),
+                "features": ("counter",),
             },
         )
     }

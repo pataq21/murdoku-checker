@@ -1,0 +1,53 @@
+{
+  "rules": [
+    {
+      "person": "Angelo",
+      "condition": {
+        "type": "relative_position",
+        "direction": "south",
+        "element": {
+          "type": "person",
+          "value": "Corinne"
+        }
+      }
+    },
+    {
+      "person": "Basil",
+      "condition": {
+        "type": "in",
+        "element": {
+          "type": "room",
+          "value": "bosque"
+        }
+      }
+    },
+    {
+      "person": "Basil",
+      "condition": {
+        "type": "not_next_to",
+        "element": {
+          "type": "feature",
+          "value": "tree"
+        }
+      }
+    },
+    {
+      "person": "Corinne",
+      "condition": {
+        "type": "in_coordinate",
+        "axis": "column",
+        "value": 4
+      }
+    },
+    {
+      "person": "Daryl",
+      "condition": {
+        "type": "next_to",
+        "element": {
+          "type": "feature",
+          "value": "rock"
+        }
+      }
+    }
+  ]
+}

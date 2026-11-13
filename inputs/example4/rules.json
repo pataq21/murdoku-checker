@@ -1,0 +1,55 @@
+{
+  "rules": [
+    {
+      "person": "Austin",
+      "condition": {
+        "type": "next_to",
+        "element": {
+          "type": "feature",
+          "value": "bookshelf"
+        }
+      }
+    },
+    {
+      "person": "Barbara",
+      "condition": {
+        "type": "in",
+        "element": {
+          "type": "feature",
+          "value": "bed"
+        }
+      }
+    },
+    {
+      "person": "Charlotte",
+      "condition": {
+        "type": "in",
+        "element": {
+          "type": "feature",
+          "value": "chair"
+        },
+        "is_unique": true
+      }
+    },
+    {
+      "person": "Dean",
+      "condition": {
+        "type": "in",
+        "element": {
+          "type": "room",
+          "value": "cocina"
+        }
+      }
+    },
+    {
+      "person": "Enid",
+      "condition": {
+        "type": "next_to",
+        "element": {
+          "type": "feature",
+          "value": "television"
+        }
+      }
+    }
+  ]
+}

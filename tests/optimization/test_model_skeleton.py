@@ -6,7 +6,8 @@ from ortools.sat.python import cp_model
 from murdoku_checker.domain import (
     AnyOf,
     Cell,
-    CellFeature,
+    Element,
+    Elements,
     FeatureElement,
     In,
     Map,
@@ -25,9 +26,21 @@ from murdoku_checker.optimization.expression_builder import ExpressionBuilder
 from murdoku_checker.optimization.model import _SolutionCounter
 from murdoku_checker.optimization.variable_builder import VariableBuilder
 
+TEST_ELEMENTS = Elements(
+    elements=(
+        Element(name="bed", is_occupiable=True),
+        Element(name="box"),
+        Element(name="carpet", is_occupiable=True),
+        Element(name="chair", is_occupiable=True),
+        Element(name="plant"),
+    )
+)
+
 
 def make_input() -> MurdokuInput:
-    return MurdokuInput(map=Map(), people=People(), rules=Rules())
+    return MurdokuInput(
+        map=Map(), elements=TEST_ELEMENTS, people=People(), rules=Rules()
+    )
 
 
 @pytest.mark.parametrize(
@@ -77,6 +90,7 @@ def test_variable_builder_creates_one_boolean_per_person_and_cell() -> None:
                 Cell(latitude=1, longitude=1, room="cocina"),
             )
         ),
+        elements=TEST_ELEMENTS,
         people=People(
             people=(
                 Person(name="Alice", gender=Gender.FEMALE),
@@ -101,6 +115,7 @@ def test_variable_builder_creates_one_boolean_per_person_and_cell() -> None:
 def test_model_builder_exposes_variables() -> None:
     input_ = MurdokuInput(
         map=Map(cells=(Cell(latitude=0, longitude=0, room="comedor"),)),
+        elements=TEST_ELEMENTS,
         people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
         rules=Rules(),
     )
@@ -237,6 +252,7 @@ def make_grid_input(positions: tuple[tuple[int, int], ...]) -> MurdokuInput:
                 for latitude, longitude in positions
             )
         ),
+        elements=TEST_ELEMENTS,
         people=People(
             people=(
                 Person(name="Alice", gender=Gender.FEMALE),
@@ -297,15 +313,16 @@ def make_next_to_input(rules: tuple[Rule, ...]) -> MurdokuInput:
     #  (0,0) box/a   (0,1) a   (0,2) b
     #  (1,0) a       (1,1) b   (1,2) b
     cells = (
-        Cell(latitude=0, longitude=0, room="a", features=(CellFeature.BOX,)),
+        Cell(latitude=0, longitude=0, room="a", features=("box",)),
         Cell(latitude=0, longitude=1, room="a"),
         Cell(latitude=0, longitude=2, room="b"),
         Cell(latitude=1, longitude=0, room="a"),
-        Cell(latitude=1, longitude=1, room="b", features=(CellFeature.PLANT,)),
+        Cell(latitude=1, longitude=1, room="b", features=("plant",)),
         Cell(latitude=1, longitude=2, room="b"),
     )
     return MurdokuInput(
         map=Map(cells=cells),
+        elements=TEST_ELEMENTS,
         people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
         rules=Rules(rules=rules),
     )
@@ -314,7 +331,7 @@ def make_next_to_input(rules: tuple[Rule, ...]) -> MurdokuInput:
 def box_rule() -> Rule:
     return Rule(
         person="Alice",
-        condition=NextTo(element=FeatureElement(value=CellFeature.BOX)),
+        condition=NextTo(element=FeatureElement(value="box")),
     )
 
 
@@ -329,7 +346,7 @@ def test_variable_builder_next_to_keeps_adjacent_cells_in_same_room() -> None:
 def test_variable_builder_next_to_ignores_adjacent_cells_in_other_rooms() -> None:
     rule = Rule(
         person="Alice",
-        condition=NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+        condition=NextTo(element=FeatureElement(value="plant")),
     )
 
     variables = VariableBuilder(cp_model.CpModel()).build(make_next_to_input((rule,)))
@@ -340,15 +357,15 @@ def test_variable_builder_next_to_ignores_adjacent_cells_in_other_rooms() -> Non
 @pytest.mark.parametrize(
     ("feature", "expected"),
     [
-        (CellFeature.BOX, {("Alice", 0, 2), ("Alice", 1, 2)}),
+        ("box", {("Alice", 0, 2), ("Alice", 1, 2)}),
         (
-            CellFeature.PLANT,
+            "plant",
             {("Alice", 0, 1), ("Alice", 0, 2), ("Alice", 1, 0)},
         ),
     ],
 )
 def test_not_next_to_is_exact_complement_on_occupiable_cells(
-    feature: CellFeature, expected: set[tuple[str, int, int]]
+    feature: str, expected: set[tuple[str, int, int]]
 ) -> None:
     element = FeatureElement(value=feature)
     positive = Rule(person="Alice", condition=NextTo(element=element))
@@ -370,7 +387,7 @@ def test_next_to_and_not_next_to_are_contradictory_but_any_of_is_tautology() -> 
     positive = box_rule()
     negative = Rule(
         person="Alice",
-        condition=NotNextTo(element=FeatureElement(value=CellFeature.BOX)),
+        condition=NotNextTo(element=FeatureElement(value="box")),
     )
 
     model = ModelBuilder().build(make_next_to_input((positive, negative)))
@@ -388,7 +405,7 @@ def test_not_next_to_intersects_with_room_rule() -> None:
     rules = (
         Rule(
             person="Alice",
-            condition=NotNextTo(element=FeatureElement(value=CellFeature.PLANT)),
+            condition=NotNextTo(element=FeatureElement(value="plant")),
         ),
         Rule(person="Alice", condition=In(element=RoomElement(value="b"))),
     )
@@ -407,9 +424,9 @@ def test_not_next_to_checks_every_feature_and_allows_diagonals_and_feature_cells
             longitude=column,
             room="a",
             features=(
-                (CellFeature.CHAIR,)
+                ("chair",)
                 if (row, column) in {(0, 0), (0, 2)}
-                else (CellFeature.BOX,)
+                else ("box",)
                 if (row, column) == (2, 2)
                 else ()
             ),
@@ -419,13 +436,14 @@ def test_not_next_to_checks_every_feature_and_allows_diagonals_and_feature_cells
     )
     input_ = MurdokuInput(
         map=Map(cells=cells),
+        elements=TEST_ELEMENTS,
         people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
         rules=Rules(
             rules=(
                 Rule(
                     person="Alice",
                     condition=NotNextTo(
-                        element=FeatureElement(value=CellFeature.CHAIR)
+                        element=FeatureElement(value="chair")
                     ),
                 ),
             )
@@ -448,8 +466,8 @@ def test_variable_builder_any_of_unites_next_to_cells() -> None:
         person="Alice",
         condition=AnyOf(
             conditions=(
-                NextTo(element=FeatureElement(value=CellFeature.BOX)),
-                NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+                NextTo(element=FeatureElement(value="box")),
+                NextTo(element=FeatureElement(value="plant")),
             )
         ),
     )
@@ -485,15 +503,16 @@ def test_variable_builder_in_room_keeps_only_occupiable_room_cells() -> None:
 def test_variable_builder_in_feature_keeps_cells_with_feature() -> None:
     rule = Rule(
         person="Alice",
-        condition=In(element=FeatureElement(value=CellFeature.BED)),
+        condition=In(element=FeatureElement(value="bed")),
     )
     cells = (
-        Cell(latitude=0, longitude=0, room="a", features=(CellFeature.BED,)),
-        Cell(latitude=0, longitude=1, room="a", features=(CellFeature.BED,)),
+        Cell(latitude=0, longitude=0, room="a", features=("bed",)),
+        Cell(latitude=0, longitude=1, room="a", features=("bed",)),
         Cell(latitude=1, longitude=0, room="a"),
     )
     input_ = MurdokuInput(
         map=Map(cells=cells),
+        elements=TEST_ELEMENTS,
         people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
         rules=Rules(rules=(rule,)),
     )
@@ -509,7 +528,7 @@ def test_variable_builder_any_of_unites_in_and_next_to() -> None:
         condition=AnyOf(
             conditions=(
                 In(element=RoomElement(value="b")),
-                NextTo(element=FeatureElement(value=CellFeature.BOX)),
+                NextTo(element=FeatureElement(value="box")),
             )
         ),
     )
@@ -527,7 +546,7 @@ def test_variable_builder_any_of_unites_in_and_next_to() -> None:
 def test_model_without_allowed_cells_is_infeasible() -> None:
     plant_rule = Rule(
         person="Alice",
-        condition=NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+        condition=NextTo(element=FeatureElement(value="plant")),
     )
     input_ = make_next_to_input((box_rule(), plant_rule))
 

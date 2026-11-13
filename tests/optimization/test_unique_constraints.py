@@ -4,7 +4,8 @@ from ortools.sat.python import cp_model
 from murdoku_checker.domain import (
     AnyOf,
     Cell,
-    CellFeature,
+    Element,
+    Elements,
     FeatureElement,
     In,
     Map,
@@ -23,16 +24,19 @@ from murdoku_checker.optimization.variable_builder import VariableBuilder
 #  (0,0) a/carpet  (0,1) a
 #  (1,0) b         (1,1) b/carpet
 CELLS = (
-    Cell(latitude=0, longitude=0, room="a", features=(CellFeature.CARPET,)),
+    Cell(latitude=0, longitude=0, room="a", features=("carpet",)),
     Cell(latitude=0, longitude=1, room="a"),
     Cell(latitude=1, longitude=0, room="b"),
-    Cell(latitude=1, longitude=1, room="b", features=(CellFeature.CARPET,)),
+    Cell(latitude=1, longitude=1, room="b", features=("carpet",)),
 )
 
 
 def count_solutions(*conditions: In | AnyOf) -> int:
     input_ = MurdokuInput(
         map=Map(cells=CELLS),
+        elements=Elements(
+            elements=(Element(name="carpet", is_occupiable=True),)
+        ),
         people=People(
             people=(
                 Person(name="Alice", gender=Gender.FEMALE),
@@ -64,7 +68,7 @@ def test_unique_room_excludes_other_people() -> None:
 
 
 def test_unique_feature_excludes_other_people_from_its_cells() -> None:
-    carpet = In(element=FeatureElement(value=CellFeature.CARPET), is_unique=True)
+    carpet = In(element=FeatureElement(value="carpet"), is_unique=True)
 
     # Alice on one carpet cell, Bob on one of the 2 cells without carpet.
     assert count_solutions(carpet) == 4
@@ -82,7 +86,7 @@ def test_unique_in_any_of_only_applies_to_its_branch() -> None:
 def test_unique_in_nested_any_of_applies_to_its_branch() -> None:
     inner = AnyOf(conditions=(room("a", is_unique=True), room("b", is_unique=True)))
     condition = AnyOf(
-        conditions=(inner, In(element=FeatureElement(value=CellFeature.CARPET)))
+        conditions=(inner, In(element=FeatureElement(value="carpet")))
     )
 
     # Alice alone in her room: 4 cells * 2 for Bob. The carpet branch adds the
@@ -92,7 +96,7 @@ def test_unique_in_nested_any_of_applies_to_its_branch() -> None:
 
 @pytest.mark.parametrize(("nested", "expected"), [(False, 10), (True, 12)])
 def test_not_next_to_with_unique_in_any_of(nested: bool, expected: int) -> None:
-    not_next_to = NotNextTo(element=FeatureElement(value=CellFeature.CARPET))
+    not_next_to = NotNextTo(element=FeatureElement(value="carpet"))
     condition = AnyOf(
         conditions=(
             room("a", is_unique=True),

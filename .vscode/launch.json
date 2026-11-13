@@ -7,7 +7,7 @@
             "request": "launch",
             "module": "murdoku_checker.main",
             "args": [
-                "inputs/example2"
+                "inputs/example5"
             ],
             "console": "integratedTerminal",
             "justMyCode": true

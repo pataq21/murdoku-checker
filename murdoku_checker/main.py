@@ -5,14 +5,18 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from murdoku_checker.domain import Map, MurdokuInput, People, Rules
-from murdoku_checker.loaders import load_map, load_people, load_rules
+from murdoku_checker.domain import Elements, Map, MurdokuInput, People, Rules
+from murdoku_checker.loaders import load_elements, load_map, load_people, load_rules
 from murdoku_checker.optimization import ModelBuilder
 from murdoku_checker.solution_display import format_solution
 
 
 def load_input_map(input_directory: Path) -> Map:
     return load_map(input_directory / "map.json")
+
+
+def load_input_elements(input_directory: Path) -> Elements:
+    return load_elements(input_directory / "elements.json")
 
 
 def load_input_people(input_directory: Path) -> People:
@@ -32,7 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "directory containing the input files, including map.json, "
-            "people.json, and rules.json"
+            "elements.json, people.json, and rules.json"
         ),
     )
     return parser
@@ -43,9 +47,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         map_ = load_input_map(args.input_directory)
+        elements = load_input_elements(args.input_directory)
         people = load_input_people(args.input_directory)
         rules = load_input_rules(args.input_directory)
-        input_ = MurdokuInput(map=map_, people=people, rules=rules)
+        input_ = MurdokuInput(
+            map=map_, elements=elements, people=people, rules=rules
+        )
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
@@ -61,9 +68,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     map_path = args.input_directory / "map.json"
+    elements_path = args.input_directory / "elements.json"
     people_path = args.input_directory / "people.json"
     rules_path = args.input_directory / "rules.json"
     print(f"Loaded map from '{map_path}' with {len(input_.map.cells)} cells.")
+    print(
+        f"Loaded elements from '{elements_path}' "
+        f"with {len(input_.elements.elements)} elements."
+    )
     print(
         f"Loaded people from '{people_path}' with {len(input_.people.people)} people."
     )

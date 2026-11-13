@@ -1,0 +1,29 @@
+{
+  "people": [
+    {
+      "name": "Allison",
+      "gender": "Female"
+    },
+    {
+      "name": "Brandon",
+      "gender": "Male"
+    },
+    {
+      "name": "Clark",
+      "gender": "Male"
+    },
+    {
+      "name": "Donovan",
+      "gender": "Male"
+    },
+    {
+      "name": "Ellie",
+      "gender": "Female"
+    },
+    {
+      "name": "Vincenza",
+      "gender": "Female",
+      "is_victim": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "people": [
+    {"name": "Andy", "gender": "Male"},
+    {"name": "Briggs", "gender": "Male"},
+    {"name": "Carissa", "gender": "Female"},
+    {"name": "Donna", "gender": "Female"},
+    {"name": "Ezra", "gender": "Female"},
+    {"name": "Felicia", "gender": "Female"},
+    {"name": "Greg", "gender": "Male"},
+    {"name": "Hayes", "gender": "Male"},
+    {"name": "Iliana", "gender": "Female"},
+    {"name": "Jimmy", "gender": "Male"},
+    {"name": "Kimberly", "gender": "Female"},
+    {"name": "Virgil", "gender": "Male", "is_victim": true}
+  ]
+}

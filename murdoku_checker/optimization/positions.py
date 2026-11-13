@@ -1,4 +1,13 @@
-from murdoku_checker.domain import Cell, In, Map, NextTo, NotNextTo, RoomElement
+from murdoku_checker.domain import (
+    Cell,
+    CoordinateAxis,
+    In,
+    InCoordinate,
+    Map,
+    NextTo,
+    NotNextTo,
+    RoomElement,
+)
 
 Position = tuple[int, int]
 
@@ -13,6 +22,21 @@ def in_positions(condition: In, map_: Map) -> frozenset[Position]:
     else:
         matches = (cell for cell in map_.cells if element.value in cell.features)
     return frozenset((cell.latitude, cell.longitude) for cell in matches)
+
+
+def in_coordinate_positions(
+    condition: InCoordinate, map_: Map
+) -> frozenset[Position]:
+    """Cells in the requested row or column."""
+    return frozenset(
+        (cell.latitude, cell.longitude)
+        for cell in map_.cells
+        if (
+            cell.latitude == condition.value
+            if condition.axis is CoordinateAxis.ROW
+            else cell.longitude == condition.value
+        )
+    )
 
 
 def next_to_positions(condition: NextTo | NotNextTo, map_: Map) -> frozenset[Position]:

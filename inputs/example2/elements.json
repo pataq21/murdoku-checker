@@ -1,0 +1,21 @@
+{
+  "elements": [
+    {
+      "name": "bookshelf"
+    },
+    {
+      "name": "carpet",
+      "is_occupiable": true
+    },
+    {
+      "name": "chair",
+      "is_occupiable": true
+    },
+    {
+      "name": "plant"
+    },
+    {
+      "name": "table"
+    }
+  ]
+}

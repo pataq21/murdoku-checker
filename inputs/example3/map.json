@@ -1,0 +1,144 @@
+{
+  "cells": [
+    {
+      "latitude": 0,
+      "longitude": 0,
+      "room": "bosque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 1,
+      "room": "bosque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 2,
+      "room": "bosque",
+      "features": [
+        "plant"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 3,
+      "room": "bosque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 4,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 0,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 1,
+      "room": "bosque",
+      "features": [
+        "tree"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 2,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 3,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 4,
+      "room": "bosque",
+      "features": [
+        "tree"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 0,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 1,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 2,
+      "room": "playa"
+    },
+    {
+      "latitude": 2,
+      "longitude": 3,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 4,
+      "room": "tienda_de_campana"
+    },
+    {
+      "latitude": 3,
+      "longitude": 0,
+      "room": "bosque",
+      "features": [
+        "tree"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 1,
+      "room": "playa"
+    },
+    {
+      "latitude": 3,
+      "longitude": 2,
+      "room": "playa"
+    },
+    {
+      "latitude": 3,
+      "longitude": 3,
+      "room": "playa"
+    },
+    {
+      "latitude": 3,
+      "longitude": 4,
+      "room": "tienda_de_campana"
+    },
+    {
+      "latitude": 4,
+      "longitude": 0,
+      "room": "playa"
+    },
+    {
+      "latitude": 4,
+      "longitude": 1,
+      "room": "playa"
+    },
+    {
+      "latitude": 4,
+      "longitude": 2,
+      "room": "playa"
+    },
+    {
+      "latitude": 4,
+      "longitude": 3,
+      "room": "playa"
+    },
+    {
+      "latitude": 4,
+      "longitude": 4,
+      "room": "playa",
+      "features": [
+        "rock"
+      ]
+    }
+  ]
+}

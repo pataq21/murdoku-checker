@@ -2,7 +2,6 @@ import pytest
 from pydantic import ValidationError
 
 from murdoku_checker.domain import (
-    CellFeature,
     FeatureElement,
     NextTo,
     Rule,
@@ -13,7 +12,7 @@ from murdoku_checker.domain import (
 def make_rule(person: str = "Alex") -> Rule:
     return Rule(
         person=person,
-        condition=NextTo(element=FeatureElement(value=CellFeature.PLANT)),
+        condition=NextTo(element=FeatureElement(value="plant")),
     )
 
 

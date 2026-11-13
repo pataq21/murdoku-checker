@@ -4,8 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from murdoku_checker.domain import CellFeature, MurdokuInput
+from murdoku_checker.domain import MurdokuInput
 from murdoku_checker.main import (
+    load_input_elements,
     load_input_map,
     load_input_people,
     load_input_rules,
@@ -18,6 +19,19 @@ def write_map(input_directory: Path, data: object) -> Path:
     input_directory.mkdir()
     map_path = input_directory / "map.json"
     map_path.write_text(json.dumps(data), encoding="utf-8")
+    feature_names = sorted(
+        {
+            feature
+            for cell in data.get("cells", [])  # type: ignore[union-attr]
+            for feature in cell.get("features", [])
+        }
+    )
+    (input_directory / "elements.json").write_text(
+        json.dumps(
+            {"elements": [{"name": feature} for feature in feature_names]}
+        ),
+        encoding="utf-8",
+    )
     return map_path
 
 
@@ -51,7 +65,24 @@ def test_load_input_map_reads_map_json_from_case_directory(tmp_path: Path) -> No
 
     map_ = load_input_map(input_directory)
 
-    assert map_.get_cell(2, 3).features == (CellFeature.COUNTER,)  # type: ignore[union-attr]
+    assert map_.get_cell(2, 3).features == ("counter",)  # type: ignore[union-attr]
+
+
+def test_load_input_elements_reads_elements_json_from_case_directory(
+    tmp_path: Path,
+) -> None:
+    input_directory = tmp_path / "case"
+    write_map(input_directory, {"cells": []})
+    (input_directory / "elements.json").write_text(
+        '{"elements":[{"name":"chair","is_occupiable":true}]}',
+        encoding="utf-8",
+    )
+
+    elements = load_input_elements(input_directory)
+    chair = elements.get("chair")
+
+    assert chair is not None
+    assert chair.is_occupiable is True
 
 
 def test_load_input_people_reads_people_json_from_case_directory(
@@ -125,6 +156,8 @@ def test_main_loads_map_and_prints_summary(
     assert exit_code == 0
     assert captured.out.startswith(
         f"Loaded map from '{input_directory / 'map.json'}' with 2 cells.\n"
+        f"Loaded elements from '{input_directory / 'elements.json'}' "
+        "with 0 elements.\n"
         f"Loaded people from '{input_directory / 'people.json'}' with 2 people.\n"
         f"Loaded rules from '{input_directory / 'rules.json'}' with 1 rules.\n"
         "Multiple solutions (at least 2). Showing the first.\n"
@@ -278,6 +311,24 @@ def test_main_reports_missing_people(
     assert captured.out == ""
     assert f"Error loading input '{input_directory}'" in captured.err
     assert "people.json" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_main_reports_missing_elements(
+    tmp_path: Path,
+    capsys: object,
+) -> None:
+    input_directory = tmp_path / "missing-elements"
+    write_map(input_directory, {"cells": []})
+    (input_directory / "elements.json").unlink()
+
+    exit_code = main([str(input_directory)])
+    captured = capsys.readouterr()  # type: ignore[attr-defined]
+
+    assert exit_code == 1
+    assert captured.out == ""
+    assert f"Error loading input '{input_directory}'" in captured.err
+    assert "elements.json" in captured.err
     assert "Traceback" not in captured.err
 
 

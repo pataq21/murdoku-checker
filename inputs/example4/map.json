@@ -1,0 +1,235 @@
+{
+  "cells": [
+    {
+      "latitude": 0,
+      "longitude": 0,
+      "room": "dormitorio",
+      "features": [
+        "bed"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 1,
+      "room": "dormitorio",
+      "features": [
+        "bed"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 2,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 0,
+      "longitude": 3,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 0,
+      "longitude": 4,
+      "room": "bano",
+      "features": [
+        "plant"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 5,
+      "room": "bano",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 0,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 1,
+      "longitude": 1,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 1,
+      "longitude": 2,
+      "room": "dormitorio"
+    },
+    {
+      "latitude": 1,
+      "longitude": 3,
+      "room": "dormitorio",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 4,
+      "room": "bano"
+    },
+    {
+      "latitude": 1,
+      "longitude": 5,
+      "room": "bano"
+    },
+    {
+      "latitude": 2,
+      "longitude": 0,
+      "room": "dormitorio",
+      "features": [
+        "bookshelf"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 1,
+      "room": "dormitorio",
+      "features": [
+        "plant"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 2,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 2,
+      "longitude": 3,
+      "room": "sala_de_estar",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 4,
+      "room": "sala_de_estar",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 5,
+      "room": "bano"
+    },
+    {
+      "latitude": 3,
+      "longitude": 0,
+      "room": "cocina"
+    },
+    {
+      "latitude": 3,
+      "longitude": 1,
+      "room": "cocina"
+    },
+    {
+      "latitude": 3,
+      "longitude": 2,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 3,
+      "longitude": 3,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 3,
+      "longitude": 4,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 3,
+      "longitude": 5,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 4,
+      "longitude": 0,
+      "room": "cocina",
+      "features": [
+        "bookshelf"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 1,
+      "room": "cocina"
+    },
+    {
+      "latitude": 4,
+      "longitude": 2,
+      "room": "sala_de_estar",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 3,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 4,
+      "longitude": 4,
+      "room": "sala_de_estar",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 5,
+      "room": "sala_de_estar",
+      "features": [
+        "television"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 0,
+      "room": "cocina",
+      "features": [
+        "table"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 1,
+      "room": "cocina",
+      "features": [
+        "table"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 2,
+      "room": "sala_de_estar",
+      "features": [
+        "bookshelf"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 3,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 5,
+      "longitude": 4,
+      "room": "sala_de_estar"
+    },
+    {
+      "latitude": 5,
+      "longitude": 5,
+      "room": "sala_de_estar",
+      "features": [
+        "plant"
+      ]
+    }
+  ]
+}

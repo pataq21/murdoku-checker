@@ -1,0 +1,25 @@
+{
+  "people": [
+    {
+      "name": "Angelo",
+      "gender": "Male"
+    },
+    {
+      "name": "Basil",
+      "gender": "Male"
+    },
+    {
+      "name": "Corinne",
+      "gender": "Female"
+    },
+    {
+      "name": "Daryl",
+      "gender": "Female"
+    },
+    {
+      "name": "Van",
+      "gender": "Male",
+      "is_victim": true
+    }
+  ]
+}

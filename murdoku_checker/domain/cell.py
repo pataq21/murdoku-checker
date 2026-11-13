@@ -1,40 +1,11 @@
-from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from murdoku_checker.domain.element import ElementName
+
 Coordinate = Annotated[int, Field(ge=0)]
 Room = Annotated[str, Field(min_length=1)]
-
-
-class CellFeature(StrEnum):
-    BED = "bed"
-    BOX = "box"
-    CARPET = "carpet"
-    CHAIR = "chair"
-    COUNTER = "counter"
-    PLANT = "plant"
-    TABLE = "table"
-    TREE = "tree"
-    WARDROBE = "wardrobe"
-    BOOKSHELF = "bookshelf"
-
-    @property
-    def is_occupiable(self) -> bool:
-        return self not in _NON_OCCUPIABLE_FEATURES
-
-
-_NON_OCCUPIABLE_FEATURES = frozenset(
-    {
-        CellFeature.BOX,
-        CellFeature.PLANT,
-        CellFeature.TABLE,
-        CellFeature.TREE,
-        CellFeature.WARDROBE,
-        CellFeature.BOOKSHELF,
-        CellFeature.COUNTER,
-    }
-)
 
 
 class Cell(BaseModel):
@@ -43,17 +14,13 @@ class Cell(BaseModel):
     latitude: Coordinate
     longitude: Coordinate
     room: Room
-    features: tuple[CellFeature, ...] = Field(default=(), strict=False)
-
-    @property
-    def is_occupiable(self) -> bool:
-        return all(feature.is_occupiable for feature in self.features)
+    features: tuple[ElementName, ...] = Field(default=(), strict=False)
 
     @field_validator("features")
     @classmethod
     def validate_unique_features(
-        cls, features: tuple[CellFeature, ...]
-    ) -> tuple[CellFeature, ...]:
+        cls, features: tuple[ElementName, ...]
+    ) -> tuple[ElementName, ...]:
         if len(features) != len(set(features)):
             raise ValueError("duplicate cell feature")
         return features

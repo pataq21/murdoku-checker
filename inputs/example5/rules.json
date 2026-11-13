@@ -1,0 +1,65 @@
+{
+  "rules": [
+    {
+      "person": "Allison",
+      "condition": {
+        "type": "in_coordinate",
+        "axis": "column",
+        "value": 0
+      }
+    },
+    {
+      "person": "Brandon",
+      "condition": {
+        "type": "relative_position",
+        "direction": "south",
+        "element": {
+          "type": "person",
+          "value": "Donovan"
+        },
+        "offset": 1
+      }
+    },
+    {
+      "person": "Brandon",
+      "condition": {
+        "type": "room_relation",
+        "relation": "different",
+        "element": {
+          "type": "person",
+          "value": "Donovan"
+        }
+      }
+    },
+    {
+      "person": "Clark",
+      "condition": {
+        "type": "next_to",
+        "element": {
+          "type": "feature",
+          "value": "rock"
+        }
+      }
+    },
+    {
+      "person": "Donovan",
+      "condition": {
+        "type": "next_to",
+        "element": {
+          "type": "feature",
+          "value": "easel"
+        }
+      }
+    },
+    {
+      "person": "Ellie",
+      "condition": {
+        "type": "in",
+        "element": {
+          "type": "feature",
+          "value": "chair"
+        }
+      }
+    }
+  ]
+}

@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from murdoku_checker.domain import CellFeature
 from murdoku_checker.loaders import load_map
 
 
@@ -32,7 +31,7 @@ def test_load_map_reads_and_validates_json(tmp_path: Path) -> None:
 
     map_ = load_map(path)
 
-    assert map_.get_cell(0, 1).features == (CellFeature.PLANT,)  # type: ignore[union-attr]
+    assert map_.get_cell(0, 1).features == ("plant",)  # type: ignore[union-attr]
     assert map_.get_cell(2, 3).features == ()  # type: ignore[union-attr]
 
 
@@ -100,6 +99,6 @@ def test_load_example_map() -> None:
         "porche": 4,
         "jardin_delantero": 8,
     }
-    assert map_.get_cell(0, 1).features == (CellFeature.CHAIR,)  # type: ignore[union-attr]
-    assert map_.get_cell(1, 4).features == (CellFeature.PLANT,)  # type: ignore[union-attr]
-    assert map_.get_cell(5, 4).features == (CellFeature.TREE,)  # type: ignore[union-attr]
+    assert map_.get_cell(0, 1).features == ("chair",)  # type: ignore[union-attr]
+    assert map_.get_cell(1, 4).features == ("plant",)  # type: ignore[union-attr]
+    assert map_.get_cell(5, 4).features == ("tree",)  # type: ignore[union-attr]

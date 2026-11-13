@@ -20,7 +20,9 @@ def format_solution(input_: MurdokuInput, solution: Solution) -> str:
     tokens = {}
     for cell in cells:
         position = (cell.latitude, cell.longitude)
-        marker = occupants.get(position, "." if cell.is_occupiable else "#")
+        marker = occupants.get(
+            position, "." if input_.is_cell_occupiable(cell) else "#"
+        )
         tokens[position] = f"{marker}/{rooms[cell.room]}"
 
     latitudes = sorted({cell.latitude for cell in cells})

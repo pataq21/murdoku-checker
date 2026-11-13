@@ -3,10 +3,11 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
-from murdoku_checker.domain.cell import CellFeature
-from murdoku_checker.domain.person import Name
+from murdoku_checker.domain.cell import Coordinate, Room
+from murdoku_checker.domain.element import ElementName
+from murdoku_checker.domain.person import Gender, Name
 
 
 class RoomElement(BaseModel):
@@ -20,7 +21,7 @@ class FeatureElement(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
     type: Literal["feature"] = "feature"
-    value: CellFeature
+    value: ElementName
 
 
 class PersonElement(BaseModel):
@@ -37,8 +38,28 @@ class Direction(StrEnum):
     WEST = "west"
 
 
+class FeatureTargetRelation(StrEnum):
+    IN = "in"
+    NEXT_TO = "next_to"
+
+
+class RoomRelationKind(StrEnum):
+    SAME = "same"
+    DIFFERENT = "different"
+
+
+class CoordinateAxis(StrEnum):
+    ROW = "row"
+    COLUMN = "column"
+
+
 Element: TypeAlias = Annotated[
     RoomElement | FeatureElement,
+    Field(discriminator="type"),
+]
+
+RelativeElement: TypeAlias = Annotated[
+    PersonElement | FeatureElement,
     Field(discriminator="type"),
 ]
 
@@ -70,7 +91,61 @@ class RelativePosition(BaseModel):
 
     type: Literal["relative_position"] = "relative_position"
     direction: Direction
+    element: RelativeElement
+    offset: Annotated[int, Field(ge=1)] | None = None
+    feature_relation: FeatureTargetRelation = FeatureTargetRelation.IN
+
+    @model_validator(mode="after")
+    def validate_feature_relation(self) -> "RelativePosition":
+        if (
+            isinstance(self.element, PersonElement)
+            and self.feature_relation is not FeatureTargetRelation.IN
+        ):
+            raise ValueError("feature_relation requires a feature element")
+        return self
+
+
+class AloneWith(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["alone_with"] = "alone_with"
     element: PersonElement
+
+
+class NextToEmptyRoom(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["next_to_empty_room"] = "next_to_empty_room"
+
+
+class OtherRoomOccupied(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["other_room_occupied"] = "other_room_occupied"
+    rooms: tuple[Room, Room] = Field(strict=False)
+    gender: Gender
+
+    @model_validator(mode="after")
+    def validate_distinct_rooms(self) -> "OtherRoomOccupied":
+        if self.rooms[0] == self.rooms[1]:
+            raise ValueError("rooms must be different")
+        return self
+
+
+class RoomRelation(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["room_relation"] = "room_relation"
+    relation: RoomRelationKind
+    element: PersonElement
+
+
+class InCoordinate(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    type: Literal["in_coordinate"] = "in_coordinate"
+    axis: CoordinateAxis
+    value: Coordinate
 
 
 class AnyOf(BaseModel):
@@ -81,7 +156,16 @@ class AnyOf(BaseModel):
 
 
 Condition: TypeAlias = Annotated[
-    NextTo | NotNextTo | In | RelativePosition | AnyOf,
+    NextTo
+    | NotNextTo
+    | In
+    | RelativePosition
+    | AloneWith
+    | NextToEmptyRoom
+    | OtherRoomOccupied
+    | RoomRelation
+    | InCoordinate
+    | AnyOf,
     Field(discriminator="type"),
 ]
 

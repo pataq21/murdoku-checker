@@ -4,8 +4,9 @@ from ortools.sat.python import cp_model
 from murdoku_checker.domain import (
     AnyOf,
     Cell,
-    CellFeature,
     Direction,
+    Element,
+    Elements,
     FeatureElement,
     Gender,
     In,
@@ -17,6 +18,8 @@ from murdoku_checker.domain import (
     Person,
     PersonElement,
     RelativePosition,
+    RoomRelation,
+    RoomRelationKind,
     RoomElement,
     Rule,
     Rules,
@@ -39,11 +42,14 @@ def make_input(*conditions: Condition, step: int = 2) -> MurdokuInput:
                     latitude=row * step,
                     longitude=column * step,
                     room="a" if row == 0 else "b",
-                    features=(CellFeature.CARPET,) if row == column else (),
+                    features=("carpet",) if row == column else (),
                 )
                 for row in range(2)
                 for column in range(2)
             )
+        ),
+        elements=Elements(
+            elements=(Element(name="carpet", is_occupiable=True),)
         ),
         people=People(
             people=(
@@ -108,6 +114,69 @@ def test_multiple_direction_rules_intersect() -> None:
     assert result.first_solution == {"Alice": (0, 2), "Bob": (2, 0)}
 
 
+@pytest.mark.parametrize("direction", list(Direction))
+def test_relative_position_offset_requires_exact_distance(
+    direction: Direction,
+) -> None:
+    model = ModelBuilder().build(
+        make_input(
+            RelativePosition(
+                direction=direction,
+                element=PersonElement(value="Bob"),
+                offset=2,
+            )
+        )
+    )
+
+    assert model.solve(max_solutions=None) == 2
+
+
+def test_relative_position_offset_rejects_other_distances() -> None:
+    model = ModelBuilder().build(
+        make_input(
+            RelativePosition(
+                direction=Direction.SOUTH,
+                element=PersonElement(value="Bob"),
+                offset=1,
+            )
+        )
+    )
+
+    assert model.solve() == 0
+
+
+@pytest.mark.parametrize(
+    ("relation", "expected"),
+    [
+        (RoomRelationKind.SAME, 0),
+        (RoomRelationKind.DIFFERENT, 4),
+    ],
+)
+def test_room_relation_compares_people_rooms(
+    relation: RoomRelationKind, expected: int
+) -> None:
+    condition = RoomRelation(
+        relation=relation,
+        element=PersonElement(value="Bob"),
+    )
+
+    assert ModelBuilder().build(make_input(condition)).solve(max_solutions=None) == expected
+
+
+def test_room_relation_works_in_any_of() -> None:
+    condition = AnyOf(
+        conditions=(
+            RoomRelation(
+                relation=RoomRelationKind.SAME,
+                element=PersonElement(value="Bob"),
+            ),
+            relative(Direction.NORTH),
+        )
+    )
+
+    assert ModelBuilder().build(make_input(condition)).solve(max_solutions=None) == 2
+
+
 def test_opposing_directions_are_infeasible() -> None:
     model = ModelBuilder().build(
         make_input(relative(Direction.NORTH), relative(Direction.SOUTH))
@@ -167,7 +236,7 @@ def test_relative_position_intersects_with_static_filter() -> None:
     model = ModelBuilder().build(
         make_input(
             relative(Direction.NORTH),
-            In(element=FeatureElement(value=CellFeature.CARPET)),
+            In(element=FeatureElement(value="carpet")),
         )
     )
 
@@ -180,9 +249,9 @@ def test_relative_position_intersects_with_static_filter() -> None:
 @pytest.mark.parametrize(
     ("alternative", "expected"),
     [
-        (In(element=FeatureElement(value=CellFeature.CARPET), is_unique=True), 7),
-        (NextTo(element=FeatureElement(value=CellFeature.CARPET)), 10),
-        (NotNextTo(element=FeatureElement(value=CellFeature.CARPET)), 10),
+        (In(element=FeatureElement(value="carpet"), is_unique=True), 7),
+        (NextTo(element=FeatureElement(value="carpet")), 10),
+        (NotNextTo(element=FeatureElement(value="carpet")), 10),
     ],
 )
 def test_relative_position_combines_with_other_rules(

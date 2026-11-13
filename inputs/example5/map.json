@@ -1,0 +1,211 @@
+{
+  "cells": [
+    {
+      "latitude": 0,
+      "longitude": 0,
+      "room": "estanque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 1,
+      "room": "estanque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 2,
+      "room": "estanque",
+      "features": [
+        "rock"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 3,
+      "room": "estanque"
+    },
+    {
+      "latitude": 0,
+      "longitude": 4,
+      "room": "bosque",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 0,
+      "longitude": 5,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 0,
+      "room": "estanque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 1,
+      "room": "estanque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 2,
+      "room": "bosque"
+    },
+    {
+      "latitude": 1,
+      "longitude": 3,
+      "room": "bosque",
+      "features": [
+        "statue"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 4,
+      "room": "bosque",
+      "features": [
+        "flower"
+      ]
+    },
+    {
+      "latitude": 1,
+      "longitude": 5,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 0,
+      "room": "bosque",
+      "features": [
+        "flower"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 1,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 2,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 3,
+      "room": "bosque"
+    },
+    {
+      "latitude": 2,
+      "longitude": 4,
+      "room": "bosque",
+      "features": [
+        "easel"
+      ]
+    },
+    {
+      "latitude": 2,
+      "longitude": 5,
+      "room": "bosque",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 3,
+      "longitude": 0,
+      "room": "bosque"
+    },
+    {
+      "latitude": 3,
+      "longitude": 1,
+      "room": "bosque"
+    },
+    {
+      "latitude": 3,
+      "longitude": 2,
+      "room": "bosque"
+    },
+    {
+      "latitude": 3,
+      "longitude": 3,
+      "room": "bosque"
+    },
+    {
+      "latitude": 3,
+      "longitude": 4,
+      "room": "bosque"
+    },
+    {
+      "latitude": 3,
+      "longitude": 5,
+      "room": "bosque"
+    },
+    {
+      "latitude": 4,
+      "longitude": 0,
+      "room": "acera"
+    },
+    {
+      "latitude": 4,
+      "longitude": 1,
+      "room": "bosque"
+    },
+    {
+      "latitude": 4,
+      "longitude": 2,
+      "room": "bosque"
+    },
+    {
+      "latitude": 4,
+      "longitude": 3,
+      "room": "bosque",
+      "features": [
+        "flower"
+      ]
+    },
+    {
+      "latitude": 4,
+      "longitude": 4,
+      "room": "bosque"
+    },
+    {
+      "latitude": 4,
+      "longitude": 5,
+      "room": "acera"
+    },
+    {
+      "latitude": 5,
+      "longitude": 0,
+      "room": "acera"
+    },
+    {
+      "latitude": 5,
+      "longitude": 1,
+      "room": "acera"
+    },
+    {
+      "latitude": 5,
+      "longitude": 2,
+      "room": "acera"
+    },
+    {
+      "latitude": 5,
+      "longitude": 3,
+      "room": "acera",
+      "features": [
+        "chair"
+      ]
+    },
+    {
+      "latitude": 5,
+      "longitude": 4,
+      "room": "acera"
+    },
+    {
+      "latitude": 5,
+      "longitude": 5,
+      "room": "acera"
+    }
+  ]
+}

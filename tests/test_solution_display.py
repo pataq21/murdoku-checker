@@ -1,6 +1,7 @@
 from murdoku_checker.domain import (
     Cell,
-    CellFeature,
+    Element,
+    Elements,
     Gender,
     Map,
     MurdokuInput,
@@ -20,11 +21,12 @@ def test_grid_shows_coordinates_rooms_obstacles_and_missing_cells() -> None:
                     latitude=2,
                     longitude=5,
                     room="cocina",
-                    features=(CellFeature.PLANT,),
+                    features=("plant",),
                 ),
                 Cell(latitude=2, longitude=9, room="comedor"),
             )
         ),
+        elements=Elements(elements=(Element(name="plant"),)),
         people=People(people=(Person(name="Alice", gender=Gender.FEMALE),)),
         rules=Rules(),
     )

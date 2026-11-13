@@ -5,10 +5,36 @@ Cada problema se guarda en una carpeta independiente dentro de `inputs/`:
 ```text
 inputs/
 └── example/
+		├── elements.json
 		├── map.json
 		├── people.json
 		└── rules.json
 ```
+
+## Formato de los elementos
+
+`elements.json` define el catalogo de elementos disponible para ese problema.
+Cada elemento tiene un `name` unico y puede indicar si permite colocar una
+persona en su celda mediante `is_occupiable`. Si se omite, su valor es `false`.
+
+```json
+{
+	"elements": [
+		{
+			"name": "rock"
+		},
+		{
+			"name": "carpet",
+			"is_occupiable": true
+		}
+	]
+}
+```
+
+Los nombres son especificos de cada problema: no existe un catalogo global y
+se pueden añadir elementos nuevos sin modificar el codigo. No se admiten
+nombres vacios, duplicados, campos desconocidos ni conversiones implicitas de
+tipos.
 
 ## Formato del mapa
 
@@ -30,9 +56,10 @@ negativos que empiezan en cero. `latitude` representa la fila de arriba abajo y
 }
 ```
 
-Las caracteristicas admitidas son `bed`, `box`, `carpet`, `chair`, `counter`,
-`plant`, `table`, `tree` y `wardrobe`. Un objeto que ocupa varias celdas se
-incluye en las caracteristicas de cada una de ellas.
+Cada nombre incluido en `features` debe existir en el `elements.json` del
+problema. Un objeto que ocupa varias celdas se incluye en las caracteristicas
+de cada una de ellas. Una celda es ocupable solo si todos sus elementos tienen
+`is_occupiable: true`.
 
 No puede haber dos celdas con las mismas coordenadas y no se admiten campos
 desconocidos, caracteristicas duplicadas ni conversiones implicitas de tipos.
@@ -76,7 +103,21 @@ una unica `condition`, discriminada por `type`:
 - `relative_position` compara la posicion con otra persona, indicada mediante
   un elemento `person`. `direction` admite `north` (menor latitude), `south`
   (mayor latitude), `west` (menor longitude) y `east` (mayor longitude).
-  No exige adyacencia, compartir habitacion ni coincidir en el otro eje.
+  No exige adyacencia, compartir habitacion ni coincidir en el otro eje. El
+  campo opcional `offset` exige una distancia exacta positiva en ese eje; si
+  se omite, solo se exige estar en la direccion indicada. Cuando el elemento
+  es una feature, la posicion se compara con una persona anonima que cumple
+  `feature_relation`: `in` por defecto o `next_to`.
+- `room_relation` compara la habitacion con otra persona. `relation` admite
+  `same` y `different`.
+- `alone_with` exige compartir habitacion con la persona indicada y que no
+  haya ninguna tercera persona en ella.
+- `next_to_empty_room` exige estar en una celda contigua, sin diagonales, a
+  una habitacion distinta que no contenga personas.
+- `other_room_occupied` recibe exactamente dos `rooms`: la persona debe estar
+  en una de ellas y debe haber una persona del `gender` indicado en la otra.
+- `in_coordinate` exige estar en una fila (`row`) o columna (`column`)
+  concreta. `value` es el indice de la coordenada, empezando en cero.
 - `any_of` expresa una disyuncion de al menos dos condiciones y puede contener
   otras condiciones `any_of`.
 
@@ -99,6 +140,42 @@ Las comparaciones son estrictas: una persona nunca esta al norte, sur, este
 u oeste de si misma. `relative_position` puede combinarse con las otras
 condiciones en `any_of`, tambien anidados. Varias reglas de una persona
 deben cumplirse simultaneamente.
+
+Por ejemplo, estar exactamente una fila al sur de Donovan y en otra zona se
+expresa mediante dos reglas:
+
+```json
+{
+    "person": "Brandon",
+    "condition": {
+        "type": "relative_position",
+        "direction": "south",
+        "element": {"type": "person", "value": "Donovan"},
+        "offset": 1
+    }
+},
+{
+    "person": "Brandon",
+    "condition": {
+        "type": "room_relation",
+        "relation": "different",
+        "element": {"type": "person", "value": "Donovan"}
+    }
+}
+```
+
+Por ejemplo, la ultima columna de un mapa de cinco columnas se expresa asi:
+
+```json
+{
+    "person": "Corinne",
+    "condition": {
+        "type": "in_coordinate",
+        "axis": "column",
+        "value": 4
+    }
+}
+```
 
 `next_to` y `not_next_to` solo admiten elementos de tipo `feature`. Por ejemplo:
 
@@ -140,19 +217,26 @@ adyacencia, no prohibe por si sola estar sobre una feature ocupable.
 }
 ```
 
-Las personas, rooms y features referenciadas deben existir en los otros
-archivos del caso.
+Las personas, rooms y elementos referenciados deben existir en los otros
+archivos del caso. Tambien deben estar declarados todos los elementos usados
+por las celdas del mapa.
 
 ## Carga
 
 ```python
 from murdoku_checker.domain import MurdokuInput
-from murdoku_checker.loaders import load_map, load_people, load_rules
+from murdoku_checker.loaders import load_elements, load_map, load_people, load_rules
 
 map_ = load_map("inputs/example/map.json")
+elements = load_elements("inputs/example/elements.json")
 people = load_people("inputs/example/people.json")
 rules = load_rules("inputs/example/rules.json")
-input_ = MurdokuInput(map=map_, people=people, rules=rules)
+input_ = MurdokuInput(
+    map=map_,
+    elements=elements,
+    people=people,
+    rules=rules,
+)
 cell = map_.get_cell(0, 0)
 ```
 
