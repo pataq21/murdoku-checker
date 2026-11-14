@@ -1,3 +1,3 @@
-from murdoku_checker.domain import Cell, Map
+from murdoku_checker.domain import GridCell, Map
 
-__all__ = ["Cell", "Map"]
+__all__ = ["GridCell", "Map"]

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from murdoku_checker.domain import Cell, Map
+from murdoku_checker.domain import GridCell, Map, Room
 
 
 def test_map_can_be_empty() -> None:
@@ -12,13 +12,13 @@ def test_map_can_be_empty() -> None:
 
 
 def test_map_stores_and_finds_cells() -> None:
-    first = Cell(
+    first = GridCell(
         latitude=0,
         longitude=1,
         room="comedor",
         features=["plant"],
     )
-    second = Cell(
+    second = GridCell(
         latitude=3,
         longitude=2,
         room="cocina",
@@ -35,8 +35,8 @@ def test_map_stores_and_finds_cells() -> None:
 
 def test_map_rejects_duplicate_coordinates() -> None:
     cells = [
-        Cell(latitude=1, longitude=2, room="comedor"),
-        Cell(latitude=1, longitude=2, room="cocina"),
+        GridCell(latitude=1, longitude=2, room="comedor"),
+        GridCell(latitude=1, longitude=2, room="cocina"),
     ]
 
     with pytest.raises(ValidationError, match="duplicate cell coordinates") as error:
@@ -68,7 +68,7 @@ def test_get_cell_validates_coordinates(coordinate: object) -> None:
 
 
 def test_map_is_immutable() -> None:
-    map_ = Map(cells=[Cell(latitude=0, longitude=0, room="comedor")])
+    map_ = Map(cells=[GridCell(latitude=0, longitude=0, room="comedor")])
 
     with pytest.raises(ValidationError) as error:
         map_.cells = ()  # type: ignore[misc]
@@ -77,7 +77,7 @@ def test_map_is_immutable() -> None:
 
 
 def test_map_serializes_cells_without_private_index() -> None:
-    cell = Cell(
+    cell = GridCell(
         latitude=1,
         longitude=2,
         room="cocina",
@@ -96,3 +96,25 @@ def test_map_serializes_cells_without_private_index() -> None:
         )
     }
     assert '"_cells_by_position"' not in map_.model_dump_json()
+
+def test_map_groups_cells_into_rooms_sorted_by_name() -> None:
+    kitchen = GridCell(latitude=0, longitude=0, room="cocina", features=["oven"])
+    dining = GridCell(latitude=0, longitude=1, room="comedor", features=["oven"])
+    pantry = GridCell(latitude=1, longitude=0, room="cocina")
+    map_ = Map(cells=[dining, kitchen, pantry])
+    cocina = map_.get_room("cocina")
+
+    assert [room.name for room in map_.rooms] == ["cocina", "comedor"]
+    assert cocina == Room(name="cocina", cells=(kitchen, pantry))
+    assert cocina is not None and cocina.positions == {(0, 0), (1, 0)}
+    assert map_.get_room("salon") is None
+    assert map_.positions == {(0, 0), (0, 1), (1, 0)}
+    assert map_.feature_positions("oven") == {(0, 0), (0, 1)}
+
+
+def test_room_rejects_cells_of_another_room() -> None:
+    with pytest.raises(ValidationError, match="belongs to room 'comedor'"):
+        Room(
+            name="cocina",
+            cells=(GridCell(latitude=0, longitude=0, room="comedor"),),
+        )

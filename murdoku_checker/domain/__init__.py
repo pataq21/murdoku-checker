@@ -1,31 +1,39 @@
-from murdoku_checker.domain.cell import Cell
-from murdoku_checker.domain.element import Element, Elements
+from murdoku_checker.domain.element import Element
+from murdoku_checker.domain.elements import Elements
+from murdoku_checker.domain.grid_cell import GridCell, Position
 from murdoku_checker.domain.map import Map
 from murdoku_checker.domain.murdoku_input import MurdokuInput
 from murdoku_checker.domain.people import People
 from murdoku_checker.domain.person import Gender, Person
-from murdoku_checker.domain.rule import (
-    AnyOf,
+from murdoku_checker.domain.placement_variables import PlacementVariables
+from murdoku_checker.domain.room import Room
+from murdoku_checker.domain.rules import (
+    RULE_ADAPTER,
+    AnyOfRule,
+    BaseRule,
     CoordinateAxis,
     Direction,
     FeatureElement,
     FeatureTargetRelation,
-    In,
-    InCoordinate,
-    NextTo,
-    NotNextTo,
+    InCoordinateRule,
+    InRule,
+    NextToRule,
+    NotNextToRule,
     PersonElement,
-    RelativePosition,
-    RoomRelation,
-    RoomRelationKind,
+    PositionalRule,
+    RelativePositionRule,
     RoomElement,
+    RoomRelationKind,
+    RoomRelationRule,
     Rule,
+    Rules,
 )
-from murdoku_checker.domain.rules import Rules
+from murdoku_checker.domain.solution import Solution
 
 __all__ = [
-    "AnyOf",
-    "Cell",
+    "RULE_ADAPTER",
+    "AnyOfRule",
+    "BaseRule",
     "CoordinateAxis",
     "Direction",
     "Element",
@@ -33,19 +41,25 @@ __all__ = [
     "FeatureElement",
     "FeatureTargetRelation",
     "Gender",
-    "In",
-    "InCoordinate",
+    "GridCell",
+    "InCoordinateRule",
+    "InRule",
     "Map",
     "MurdokuInput",
-    "NextTo",
-    "NotNextTo",
+    "NextToRule",
+    "NotNextToRule",
     "People",
     "Person",
     "PersonElement",
-    "RelativePosition",
-    "RoomRelation",
-    "RoomRelationKind",
+    "PlacementVariables",
+    "Position",
+    "PositionalRule",
+    "RelativePositionRule",
+    "Room",
     "RoomElement",
+    "RoomRelationKind",
+    "RoomRelationRule",
     "Rule",
     "Rules",
+    "Solution",
 ]

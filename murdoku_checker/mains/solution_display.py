@@ -1,5 +1,5 @@
-from murdoku_checker.domain import MurdokuInput
 from murdoku_checker.apps.solution_checker.model import Placement
+from murdoku_checker.domain import MurdokuInput
 
 
 def format_solution(input_: MurdokuInput, solution: Placement) -> str:

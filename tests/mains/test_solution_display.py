@@ -1,8 +1,8 @@
 from murdoku_checker.domain import (
-    GridCell,
     Element,
     Elements,
     Gender,
+    GridCell,
     Map,
     MurdokuInput,
     People,

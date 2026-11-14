@@ -5,7 +5,7 @@
             "name": "Debug Murdoku example",
             "type": "debugpy",
             "request": "launch",
-            "module": "murdoku_checker.main",
+            "module": "murdoku_checker.mains.main_verify_puzzle",
             "args": [
                 "inputs/so_easy/example1"
             ],

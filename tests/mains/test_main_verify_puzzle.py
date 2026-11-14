@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from murdoku_checker.apps.solution_checker import SolveResult
 from murdoku_checker.domain import MurdokuInput
 from murdoku_checker.mains.main_verify_puzzle import (
     load_input_elements,
@@ -12,7 +13,6 @@ from murdoku_checker.mains.main_verify_puzzle import (
     load_input_rules,
     main,
 )
-from murdoku_checker.apps.solution_checker import SolveResult
 
 
 def write_map(input_directory: Path, data: object) -> Path:

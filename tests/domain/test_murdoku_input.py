@@ -2,24 +2,23 @@ import pytest
 from pydantic import ValidationError
 
 from murdoku_checker.domain import (
-    AnyOf,
-    Cell,
+    AnyOfRule,
     Direction,
     Element,
     Elements,
     FeatureElement,
     Gender,
-    In,
+    GridCell,
+    InRule,
     Map,
     MurdokuInput,
-    NextTo,
-    NotNextTo,
+    NextToRule,
+    NotNextToRule,
     People,
     Person,
     PersonElement,
-    RelativePosition,
+    RelativePositionRule,
     RoomElement,
-    Rule,
     Rules,
 )
 
@@ -27,7 +26,7 @@ from murdoku_checker.domain import (
 def make_map() -> Map:
     return Map(
         cells=[
-            Cell(
+            GridCell(
                 latitude=0,
                 longitude=0,
                 room="comedor",
@@ -48,14 +47,8 @@ def make_elements() -> Elements:
 def test_murdoku_input_accepts_consistent_references() -> None:
     rules = Rules(
         rules=[
-            Rule(
-                person="Alex",
-                condition=In(element=RoomElement(value="comedor")),
-            ),
-            Rule(
-                person="Alex",
-                condition=NextTo(element=FeatureElement(value="plant")),
-            ),
+            InRule(person="Alex", element=RoomElement(value="comedor")),
+            NextToRule(person="Alex", element=FeatureElement(value="plant")),
         ]
     )
 
@@ -106,10 +99,7 @@ def test_murdoku_input_resolves_cell_occupancy_from_catalog(
 def test_murdoku_input_rejects_unknown_person() -> None:
     rules = Rules(
         rules=[
-            Rule(
-                person="Unknown",
-                condition=In(element=RoomElement(value="comedor")),
-            )
+            InRule(person="Unknown", element=RoomElement(value="comedor"))
         ]
     )
 
@@ -122,10 +112,7 @@ def test_murdoku_input_rejects_unknown_person() -> None:
 def test_murdoku_input_rejects_unknown_room() -> None:
     rules = Rules(
         rules=[
-            Rule(
-                person="Alex",
-                condition=In(element=RoomElement(value="dormitorio")),
-            )
+            InRule(person="Alex", element=RoomElement(value="dormitorio"))
         ]
     )
 
@@ -135,27 +122,23 @@ def test_murdoku_input_rejects_unknown_room() -> None:
         )
 
 
-@pytest.mark.parametrize("condition_type", [NextTo, NotNextTo])
+@pytest.mark.parametrize("rule_type", [NextToRule, NotNextToRule])
 @pytest.mark.parametrize("nested", [False, True])
 def test_murdoku_input_rejects_unknown_feature(
-    condition_type: type[NextTo] | type[NotNextTo], nested: bool
+    rule_type: type[NextToRule] | type[NotNextToRule], nested: bool
 ) -> None:
-    condition = condition_type(element=FeatureElement(value="box"))
+    rule = rule_type(person="Alex", element=FeatureElement(value="box"))
     rules = Rules(
         rules=[
-            Rule(
+            AnyOfRule(
                 person="Alex",
-                condition=(
-                    AnyOf(
-                        conditions=(
-                            In(element=RoomElement(value="comedor")),
-                            condition,
-                        )
-                    )
-                    if nested
-                    else condition
+                conditions=(
+                    InRule(person="Alex", element=RoomElement(value="comedor")),
+                    rule,
                 ),
             )
+            if nested
+            else rule
         ]
     )
 
@@ -168,19 +151,20 @@ def test_murdoku_input_rejects_unknown_feature(
 def test_murdoku_input_validates_nested_any_of_references() -> None:
     rules = Rules(
         rules=[
-            Rule(
+            AnyOfRule(
                 person="Alex",
-                condition=AnyOf(
-                    conditions=[
-                        NextTo(element=FeatureElement(value="plant")),
-                        AnyOf(
-                            conditions=[
-                                In(element=RoomElement(value="comedor")),
-                                In(element=RoomElement(value="dormitorio")),
-                            ]
-                        ),
-                    ]
-                ),
+                conditions=[
+                    NextToRule(person="Alex", element=FeatureElement(value="plant")),
+                    AnyOfRule(
+                        person="Alex",
+                        conditions=[
+                            InRule(person="Alex", element=RoomElement(value="comedor")),
+                            InRule(
+                                person="Alex", element=RoomElement(value="dormitorio")
+                            ),
+                        ],
+                    ),
+                ],
             )
         ]
     )
@@ -217,24 +201,20 @@ def test_murdoku_input_is_immutable() -> None:
 
 @pytest.mark.parametrize("nested", [False, True])
 def test_relative_position_references_must_exist(nested: bool) -> None:
-    relative = RelativePosition(
-        direction=Direction.SOUTH, element=PersonElement(value="Cameron")
+    relative = RelativePositionRule(
+        person="Alex", direction=Direction.SOUTH, element=PersonElement(value="Cameron")
     )
     rules = Rules(
         rules=(
-            Rule(
+            AnyOfRule(
                 person="Alex",
-                condition=(
-                    AnyOf(
-                        conditions=(
-                            In(element=RoomElement(value="comedor")),
-                            AnyOf(conditions=(relative, relative)),
-                        )
-                    )
-                    if nested
-                    else relative
+                conditions=(
+                    InRule(person="Alex", element=RoomElement(value="comedor")),
+                    AnyOfRule(person="Alex", conditions=(relative, relative)),
                 ),
-            ),
+            )
+            if nested
+            else relative,
         )
     )
 

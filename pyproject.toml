@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-murdoku-checker = "murdoku_checker.main:main"
+murdoku-checker = "murdoku_checker.mains.main_verify_puzzle:main"
 
 [build-system]
 requires = ["hatchling"]

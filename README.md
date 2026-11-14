@@ -1,5 +1,45 @@
 # Murdoku Checker
 
+## Arquitectura
+
+El codigo sigue la arquitectura por capas descrita en
+[docs/roadmap.md](docs/roadmap.md):
+
+```text
+murdoku_checker/
+??? domain/                  # Nucleo puro: entidades y motor de reglas
+?   ??? grid_cell.py         # GridCell (celda de la cuadricula)
+?   ??? room.py              # Room (habitacion y sus celdas)
+?   ??? map.py               # Map (celdas, habitaciones y features)
+?   ??? element.py           # Element (catalogo: elements.py)
+?   ??? person.py            # Person (coleccion: people.py)
+?   ??? solution.py          # Solution (colocacion de cada persona)
+?   ??? murdoku_input.py     # Puzle completo con validacion de referencias
+?   ??? rules/               # BaseRule y una clase por tipo de regla
+??? apps/
+?   ??? solution_checker/    # Modelo CP-SAT y comprobacion de unicidad
+??? mains/                   # Entrada/salida: loaders, salida y CLI
+    ??? main_verify_puzzle.py
+```
+
+Cada regla hereda de `BaseRule` (patron Estrategia) y expone:
+
+- `description`: texto de la pista para el jugador (en ingles; filas y
+  columnas se numeran desde 1).
+- `difficulty`: coste cognitivo de la pista.
+- `protagonists`: personas implicadas.
+- `evaluate(solution)`: si la regla se cumple en una `Solution`.
+- `apply_to_model(model, variables)`: inyecta sus restricciones en el modelo
+  CP-SAT. `to_literal(model, variables)` devuelve un booleano equivalente a la
+  regla, usado para componerlas (por ejemplo en `any_of`).
+
+Las clases concretas son `NextToRule`, `NotNextToRule`, `InRule`,
+`InCoordinateRule`, `RelativePositionRule`, `RoomRelationRule` y `AnyOfRule`.
+Todas incluyen su `person`; las reglas anidadas en `any_of` heredan la persona
+de la disyuncion cuando se cargan desde JSON.
+
+## Casos
+
 Cada problema se guarda por dificultad dentro de `inputs/`:
 
 ```text
@@ -225,7 +265,12 @@ por las celdas del mapa.
 
 ```python
 from murdoku_checker.domain import MurdokuInput
-from murdoku_checker.loaders import load_elements, load_map, load_people, load_rules
+from murdoku_checker.mains.loaders import (
+    load_elements,
+    load_map,
+    load_people,
+    load_rules,
+)
 
 map_ = load_map("inputs/so_easy/example1/map.json")
 elements = load_elements("inputs/so_easy/example1/elements.json")
@@ -255,7 +300,7 @@ uv run murdoku-checker inputs/so_easy/example1
 Tambien puede ejecutarse como modulo:
 
 ```bash
-uv run python -m murdoku_checker.main inputs/so_easy/example1
+uv run python -m murdoku_checker.mains.main_verify_puzzle inputs/so_easy/example1
 ```
 
 La salida incluye el resumen de carga y uno de estos resultados:
@@ -293,7 +338,9 @@ Un mapa vacio sin personas tiene una solucion vacia y se muestra como
 `First solution: empty map.`. Los errores de carga o resolucion se escriben
 en stderr y devuelven codigo 1; un caso valido sin solucion devuelve codigo 0.
 
-Desde Python, `OptimizationModel.solve()` sigue devolviendo el numero de
+Desde Python, `check_solutions(input_)` de
+`murdoku_checker.apps.solution_checker` busca hasta 2 soluciones y devuelve
+un `SolveResult`. `OptimizationModel.solve()` devuelve el numero de
 soluciones encontradas (hasta 2 por defecto). `solve_with_solution()` devuelve
 un `SolveResult` con `count` y `first_solution`: un mapping inmutable de nombre
 a `(latitude, longitude)`, o `None` si no hay solucion. Ambos metodos aceptan
