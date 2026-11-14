@@ -4,7 +4,6 @@ from types import MappingProxyType
 from ortools.sat.python import cp_model
 
 from murdoku_checker.domain import (
-    AloneWith,
     AnyOf,
     In,
     InCoordinate,
@@ -12,8 +11,6 @@ from murdoku_checker.domain import (
     MurdokuInput,
     NextTo,
     NotNextTo,
-    NextToEmptyRoom,
-    OtherRoomOccupied,
     RelativePosition,
     RoomRelation,
 )
@@ -81,16 +78,7 @@ class VariableBuilder:
             return in_positions(condition, map_)
         if isinstance(condition, InCoordinate):
             return in_coordinate_positions(condition, map_)
-        if isinstance(
-            condition,
-            (
-                AloneWith,
-                NextToEmptyRoom,
-                OtherRoomOccupied,
-                RelativePosition,
-                RoomRelation,
-            ),
-        ):
+        if isinstance(condition, (RelativePosition, RoomRelation)):
             # The other person's position is not known until solving.
             return None
         if isinstance(condition, AnyOf):

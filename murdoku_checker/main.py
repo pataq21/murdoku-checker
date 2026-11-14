@@ -62,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         optimization_model = ModelBuilder().build(input_)
-        result = optimization_model.solve_with_solution(max_solutions=None)
+        result = optimization_model.solve_with_solution(max_solutions=2)
     except RuntimeError as error:
         print(f"Error solving input '{args.input_directory}': {error}", file=sys.stderr)
         return 1

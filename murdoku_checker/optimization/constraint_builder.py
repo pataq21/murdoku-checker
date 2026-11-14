@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from ortools.sat.python import cp_model
 
 from murdoku_checker.domain import (
-    AloneWith,
     AnyOf,
     Direction,
     FeatureElement,
@@ -15,8 +14,6 @@ from murdoku_checker.domain import (
     MurdokuInput,
     NextTo,
     NotNextTo,
-    NextToEmptyRoom,
-    OtherRoomOccupied,
     RelativePosition,
     RoomRelation,
     RoomRelationKind,
@@ -34,16 +31,7 @@ from murdoku_checker.optimization.positions import (
 def _needs_rule_constraint(condition: Condition) -> bool:
     if isinstance(condition, AnyOf):
         return any(_needs_rule_constraint(child) for child in condition.conditions)
-    return isinstance(
-        condition,
-        (
-            AloneWith,
-            NextToEmptyRoom,
-            OtherRoomOccupied,
-            RelativePosition,
-            RoomRelation,
-        ),
-    ) or (
+    return isinstance(condition, (RelativePosition, RoomRelation)) or (
         isinstance(condition, In) and condition.is_unique
     )
 
@@ -126,21 +114,6 @@ class ConstraintBuilder:
         if isinstance(condition, RoomRelation):
             return self._room_relation_literal(
                 person, condition, input_.map, variables
-            )
-
-        if isinstance(condition, AloneWith):
-            return self._alone_with_literal(
-                person, condition, input_.map, variables
-            )
-
-        if isinstance(condition, NextToEmptyRoom):
-            return self._next_to_empty_room_literal(
-                person, input_.map, variables
-            )
-
-        if isinstance(condition, OtherRoomOccupied):
-            return self._other_room_occupied_literal(
-                person, condition, input_, variables
             )
 
         if isinstance(condition, In):
@@ -268,139 +241,6 @@ class ConstraintBuilder:
         if condition.direction in (Direction.SOUTH, Direction.EAST):
             return difference > 0
         return difference < 0
-
-    def _alone_with_literal(
-        self,
-        person: str,
-        condition: AloneWith,
-        map_: Map,
-        variables: Variables,
-    ) -> cp_model.IntVar:
-        branches = []
-        for room in {cell.room for cell in map_.cells}:
-            positions = {
-                (cell.latitude, cell.longitude)
-                for cell in map_.cells
-                if cell.room == room
-            }
-            person_in = self._person_in_positions(person, positions, variables)
-            companion_in = self._person_in_positions(
-                condition.element.value, positions, variables
-            )
-            others_in = self._any_of(
-                [
-                    variable
-                    for (name, latitude, longitude), variable in variables.items()
-                    if name not in (person, condition.element.value)
-                    and (latitude, longitude) in positions
-                ]
-            )
-            branches.append(
-                self._all_of([person_in, companion_in, others_in.negated()])
-            )
-        return self._any_of(branches)
-
-    def _next_to_empty_room_literal(
-        self, person: str, map_: Map, variables: Variables
-    ) -> cp_model.IntVar:
-        room_positions = {
-            room: {
-                (cell.latitude, cell.longitude)
-                for cell in map_.cells
-                if cell.room == room
-            }
-            for room in {cell.room for cell in map_.cells}
-        }
-        occupied = {
-            room: self._any_of(
-                [
-                    variable
-                    for (_, latitude, longitude), variable in variables.items()
-                    if (latitude, longitude) in positions
-                ]
-            )
-            for room, positions in room_positions.items()
-        }
-        branches = []
-        for (name, latitude, longitude), variable in variables.items():
-            if name != person:
-                continue
-            cell = map_.get_cell(latitude, longitude)
-            if cell is None:
-                continue
-            neighbouring_rooms = set()
-            for d_latitude, d_longitude in (
-                (-1, 0),
-                (1, 0),
-                (0, -1),
-                (0, 1),
-            ):
-                neighbour_latitude = latitude + d_latitude
-                neighbour_longitude = longitude + d_longitude
-                if neighbour_latitude < 0 or neighbour_longitude < 0:
-                    continue
-                neighbour = map_.get_cell(
-                    neighbour_latitude, neighbour_longitude
-                )
-                if neighbour is not None and neighbour.room != cell.room:
-                    neighbouring_rooms.add(neighbour.room)
-            branches.extend(
-                self._all_of([variable, occupied[room].negated()])
-                for room in neighbouring_rooms
-            )
-        return self._any_of(branches)
-
-    def _other_room_occupied_literal(
-        self,
-        person: str,
-        condition: OtherRoomOccupied,
-        input_: MurdokuInput,
-        variables: Variables,
-    ) -> cp_model.IntVar:
-        eligible = {
-            candidate.name
-            for candidate in input_.people.people
-            if candidate.name != person and candidate.gender is condition.gender
-        }
-        room_positions = {
-            room: {
-                (cell.latitude, cell.longitude)
-                for cell in input_.map.cells
-                if cell.room == room
-            }
-            for room in condition.rooms
-        }
-        branches = []
-        for own_room, other_room in (
-            condition.rooms,
-            tuple(reversed(condition.rooms)),
-        ):
-            own_positions = room_positions[own_room]
-            other_positions = room_positions[other_room]
-            person_in = self._person_in_positions(
-                person, own_positions, variables
-            )
-            eligible_in_other = self._any_of(
-                [
-                    variable
-                    for (name, latitude, longitude), variable in variables.items()
-                    if name in eligible
-                    and (latitude, longitude) in other_positions
-                ]
-            )
-            branches.append(self._all_of([person_in, eligible_in_other]))
-        return self._any_of(branches)
-
-    def _person_in_positions(
-        self, person: str, positions: set[tuple[int, int]], variables: Variables
-    ) -> cp_model.IntVar:
-        return self._any_of(
-            [
-                variable
-                for (name, latitude, longitude), variable in variables.items()
-                if name == person and (latitude, longitude) in positions
-            ]
-        )
 
     def _room_relation_literal(
         self,

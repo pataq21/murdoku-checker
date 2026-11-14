@@ -214,7 +214,12 @@ def test_main_builds_optimization_model(tmp_path: Path) -> None:
 
     assert exit_code == 0
     builder_type.return_value.build.assert_called_once()
-    input_ = builder_type.return_value.build.call_args.args[0]
+    build_call = builder_type.return_value.build.call_args
+    input_ = (
+        build_call.args[0]
+        if build_call.args
+        else builder_type.call_args.args[0]
+    )
     assert isinstance(input_, MurdokuInput)
     model.solve_with_solution.assert_called_once_with(max_solutions=2)
 

@@ -63,7 +63,6 @@ class OptimizationModel:
         means no solution was found.
         """
         solver = cp_model.CpSolver()
-        solver.parameters.log_search_progress = True
         solver.parameters.enumerate_all_solutions = True
         counter = _SolutionCounter(self.variables, max_solutions)
 

@@ -116,12 +116,6 @@ una unica `condition`, discriminada por `type`:
   `feature_relation`: `in` por defecto o `next_to`.
 - `room_relation` compara la habitacion con otra persona. `relation` admite
   `same` y `different`.
-- `alone_with` exige compartir habitacion con la persona indicada y que no
-  haya ninguna tercera persona en ella.
-- `next_to_empty_room` exige estar en una celda contigua, sin diagonales, a
-  una habitacion distinta que no contenga personas.
-- `other_room_occupied` recibe exactamente dos `rooms`: la persona debe estar
-  en una de ellas y debe haber una persona del `gender` indicado en la otra.
 - `in_coordinate` exige estar en una fila (`row`) o columna (`column`)
   concreta. `value` es el indice de la coordenada, empezando en cero.
 - `any_of` expresa una disyuncion de al menos dos condiciones y puede contener

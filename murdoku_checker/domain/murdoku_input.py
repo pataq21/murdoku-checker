@@ -11,8 +11,6 @@ from murdoku_checker.domain.rule import (
     Condition,
     FeatureElement,
     InCoordinate,
-    NextToEmptyRoom,
-    OtherRoomOccupied,
     PersonElement,
     RoomElement,
 )
@@ -63,15 +61,6 @@ class MurdokuInput(BaseModel):
             return
 
         if isinstance(condition, InCoordinate):
-            return
-
-        if isinstance(condition, NextToEmptyRoom):
-            return
-
-        if isinstance(condition, OtherRoomOccupied):
-            for room in condition.rooms:
-                if room not in rooms:
-                    raise ValueError(f"unknown room in rule: {room}")
             return
 
         element = condition.element

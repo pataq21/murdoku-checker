@@ -5,9 +5,9 @@ from typing import Annotated, Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
-from murdoku_checker.domain.cell import Coordinate, Room
+from murdoku_checker.domain.cell import Coordinate
 from murdoku_checker.domain.element import ElementName
-from murdoku_checker.domain.person import Gender, Name
+from murdoku_checker.domain.person import Name
 
 
 class RoomElement(BaseModel):
@@ -105,33 +105,6 @@ class RelativePosition(BaseModel):
         return self
 
 
-class AloneWith(BaseModel):
-    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
-
-    type: Literal["alone_with"] = "alone_with"
-    element: PersonElement
-
-
-class NextToEmptyRoom(BaseModel):
-    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
-
-    type: Literal["next_to_empty_room"] = "next_to_empty_room"
-
-
-class OtherRoomOccupied(BaseModel):
-    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
-
-    type: Literal["other_room_occupied"] = "other_room_occupied"
-    rooms: tuple[Room, Room] = Field(strict=False)
-    gender: Gender
-
-    @model_validator(mode="after")
-    def validate_distinct_rooms(self) -> "OtherRoomOccupied":
-        if self.rooms[0] == self.rooms[1]:
-            raise ValueError("rooms must be different")
-        return self
-
-
 class RoomRelation(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
@@ -160,9 +133,6 @@ Condition: TypeAlias = Annotated[
     | NotNextTo
     | In
     | RelativePosition
-    | AloneWith
-    | NextToEmptyRoom
-    | OtherRoomOccupied
     | RoomRelation
     | InCoordinate
     | AnyOf,

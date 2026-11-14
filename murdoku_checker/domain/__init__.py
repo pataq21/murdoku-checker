@@ -5,7 +5,6 @@ from murdoku_checker.domain.murdoku_input import MurdokuInput
 from murdoku_checker.domain.people import People
 from murdoku_checker.domain.person import Gender, Person
 from murdoku_checker.domain.rule import (
-    AloneWith,
     AnyOf,
     CoordinateAxis,
     Direction,
@@ -15,8 +14,6 @@ from murdoku_checker.domain.rule import (
     InCoordinate,
     NextTo,
     NotNextTo,
-    NextToEmptyRoom,
-    OtherRoomOccupied,
     PersonElement,
     RelativePosition,
     RoomRelation,
@@ -27,7 +24,6 @@ from murdoku_checker.domain.rule import (
 from murdoku_checker.domain.rules import Rules
 
 __all__ = [
-    "AloneWith",
     "AnyOf",
     "Cell",
     "CoordinateAxis",
@@ -43,8 +39,6 @@ __all__ = [
     "MurdokuInput",
     "NextTo",
     "NotNextTo",
-    "NextToEmptyRoom",
-    "OtherRoomOccupied",
     "People",
     "Person",
     "PersonElement",

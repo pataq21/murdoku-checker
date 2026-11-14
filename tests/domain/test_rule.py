@@ -4,19 +4,15 @@ import pytest
 from pydantic import ValidationError
 
 from murdoku_checker.domain import (
-    AloneWith,
     AnyOf,
     CoordinateAxis,
     Direction,
     FeatureElement,
     FeatureTargetRelation,
-    Gender,
     In,
     InCoordinate,
     NextTo,
-    NextToEmptyRoom,
     NotNextTo,
-    OtherRoomOccupied,
     PersonElement,
     RelativePosition,
     RoomRelation,
@@ -276,38 +272,6 @@ def test_room_relation_round_trips_json(relation: RoomRelationKind) -> None:
     )
 
     assert RoomRelation.model_validate_json(condition.model_dump_json()) == condition
-
-
-def test_alone_with_round_trips_json() -> None:
-    condition = AloneWith(element=PersonElement(value="Iliana"))
-
-    assert AloneWith.model_validate_json(condition.model_dump_json()) == condition
-
-
-def test_next_to_empty_room_round_trips_json() -> None:
-    condition = NextToEmptyRoom()
-
-    assert NextToEmptyRoom.model_validate_json(condition.model_dump_json()) == condition
-
-
-def test_other_room_occupied_round_trips_json() -> None:
-    condition = OtherRoomOccupied(
-        rooms=("ascensor_a", "ascensor_b"),
-        gender=Gender.FEMALE,
-    )
-
-    assert (
-        OtherRoomOccupied.model_validate_json(condition.model_dump_json())
-        == condition
-    )
-
-
-def test_other_room_occupied_rejects_duplicate_rooms() -> None:
-    with pytest.raises(ValidationError, match="rooms must be different"):
-        OtherRoomOccupied(
-            rooms=("ascensor", "ascensor"),
-            gender=Gender.FEMALE,
-        )
 
 
 @pytest.mark.parametrize(
