@@ -38,6 +38,23 @@ Las clases concretas son `NextToRule`, `NotNextToRule`, `InRule`,
 Todas incluyen su `person`; las reglas anidadas en `any_of` heredan la persona
 de la disyuncion cuando se cargan desde JSON.
 
+## Generacion de solucion y pool
+
+El comando de generacion ejecuta las etapas disponibles: crea una solucion
+objetivo y genera todas las pistas verdaderas respecto a ella:
+
+```powershell
+uv run murdoku-generate inputs\generation\example.json
+```
+
+Tambien se puede ejecutar con
+`uv run python -m murdoku_checker.mains.main_generate_new_puzzle inputs\generation\example.json`.
+La salida JSON incluye `config`, `elements`, `solution` (mapa, posiciones,
+victima y muebles) y `pool`, una lista de reglas con el formato de `rules.json`.
+`--solver-logs` envia los logs a stderr. Los errores se indican en stderr con
+codigo 1 y sin salida JSON parcial. El pool no es aun un puzle terminado:
+la seleccion de pistas y la comprobacion de unicidad son etapas posteriores.
+
 ## Generacion de soluciones aleatorias (solution_creator)
 
 La primera etapa de `solution_creator` genera una especificacion, todavia sin
@@ -194,6 +211,51 @@ tableros distintos.
 Esta etapa genera una solucion objetivo, no un puzle con pistas ni una prueba
 de unicidad. La seleccion de pistas y los demas atributos narrativos de las
 personas (genero, gafas, etc.) quedan para etapas posteriores.
+
+## Pool de pistas verdaderas (pool_generator)
+
+La app `pool_generator` recibe una `Solution` objetivo y devuelve una lista de
+objetos `Rule` cuyo metodo `evaluate(solution)` devuelve `True`:
+
+```python
+from murdoku_checker.apps.pool_generator import generate_pool
+from murdoku_checker.domain import Rules
+
+# generated es el resultado no nulo de generate_solution(specification).
+pool = generate_pool(generated.solution)
+for rule in pool:
+    print(rule.description, rule.difficulty, sorted(rule.protagonists))
+
+rules_json = Rules(rules=tuple(pool)).model_dump_json(indent=2)
+```
+
+`iter_candidate_rules(solution)` permite recorrer los candidatos antes de
+filtrar. El universo se limita a las personas, habitaciones y features presentes
+en el mapa objetivo y comprende:
+
+- `in`: cada persona con cada habitacion o feature, con y sin `is_unique`.
+- `next_to` y `not_next_to`: cada persona con cada feature.
+- `in_coordinate`: cada persona con cada fila y columna existente.
+- `room_relation`: pares ordenados de personas distintas, `same` y `different`.
+- `relative_position`: las cuatro direcciones respecto a otra persona o a una
+  persona anonima sobre/junto a una feature. Incluye distancia libre y todos los
+  offsets positivos que pueden darse entre las coordenadas del mapa.
+- `any_of`: todas las parejas no ordenadas de reglas simples distintas para la
+  misma persona, sin anidamiento. Se forman antes del filtrado: una alternativa
+  falsa y otra verdadera constituyen una disyuncion verdadera.
+
+El orden es determinista, no se generan autorreferencias entre personas y los
+nombres de features repetidos en varias celdas solo se enumeran una vez.
+Se incluye a todas las personas, tambien a la victima. Una persona fuera del
+mapa provoca un error explicito; una solucion sin personas produce un pool vacio.
+
+El pool conserva las propiedades y la serializacion del catalogo existente.
+Solo se comprueba veracidad, no utilidad, dificultad objetivo ni minimalidad:
+puede contener redundancias y tautologias, que se trataran en la seleccion de
+pistas. Con `k` reglas simples por persona se generan `k * (k - 1) / 2`
+disyunciones; el coste crece cuadraticamente. El iterador no materializa todos
+los candidatos juntos, pero `generate_pool` si conserva todas las pistas
+verdaderas en la lista final.
 
 ## Casos
 
