@@ -13,6 +13,7 @@ from murdoku_checker.mains.loaders import (
     load_people,
     load_rules,
 )
+from murdoku_checker.mains.phase_timings import PhaseTimings, log_run_timings
 from murdoku_checker.mains.solution_display import format_solution
 
 
@@ -53,14 +54,24 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    with log_run_timings() as timings:
+        return _run(argv, timings)
+
+
+def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
     args = build_parser().parse_args(argv)
 
     try:
-        map_ = load_input_map(args.input_directory)
-        elements = load_input_elements(args.input_directory)
-        people = load_input_people(args.input_directory)
-        rules = load_input_rules(args.input_directory)
-        input_ = MurdokuInput(map=map_, elements=elements, people=people, rules=rules)
+        with timings.phase("load_map"):
+            map_ = load_input_map(args.input_directory)
+        with timings.phase("load_elements"):
+            elements = load_input_elements(args.input_directory)
+        with timings.phase("load_people"):
+            people = load_input_people(args.input_directory)
+        with timings.phase("load_rules"):
+            rules = load_input_rules(args.input_directory)
+        with timings.phase("validate_input"):
+            input_ = MurdokuInput(map=map_, elements=elements, people=people, rules=rules)
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
@@ -69,20 +80,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     try:
-        result = check_solutions(input_, solver_logs=args.solver_logs)
+        with timings.phase("check_solutions"):
+            result = check_solutions(input_, solver_logs=args.solver_logs)
     except RuntimeError as error:
         print(f"Error solving input '{args.input_directory}': {error}", file=sys.stderr)
         return 1
 
-    if result.first_solution is None:
-        print("No solution.")
-    else:
-        print(
-            "Unique solution."
-            if result.count == 1
-            else "Multiple solutions (at least 2). Showing the first."
-        )
-        print(format_solution(input_, result.first_solution))
+    with timings.phase("output"):
+        if result.first_solution is None:
+            print("No solution.")
+        else:
+            print(
+                "Unique solution."
+                if result.count == 1
+                else "Multiple solutions (at least 2). Showing the first."
+            )
+            print(format_solution(input_, result.first_solution))
     return 0
 
 

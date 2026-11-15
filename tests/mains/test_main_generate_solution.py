@@ -25,7 +25,9 @@ def test_main_prints_repeatable_solution_json(
     first = capsys.readouterr()
     data = json.loads(first.out)
 
-    assert first.err == ""
+    assert first.err.startswith("Phase timings:\n")
+    assert "  generate_solution:" in first.err
+    assert "  output:" in first.err
     assert data["config"] == config
     assert data["person_count"] == 3
     assert data["element_cell_count"] == 4
@@ -54,7 +56,9 @@ def test_main_prints_repeatable_solution_json(
     ) == 2
 
     assert main([str(path)]) == 0
-    assert capsys.readouterr() == first
+    second = capsys.readouterr()
+    assert second.out == first.out
+    assert second.err.startswith("Phase timings:\n")
 
 
 def test_main_displays_generated_grid_in_text_mode(
@@ -70,7 +74,7 @@ def test_main_displays_generated_grid_in_text_mode(
     assert main([str(path), "--format", "text"]) == 0
     captured = capsys.readouterr()
 
-    assert captured.err == ""
+    assert captured.err.startswith("Phase timings:\n")
     assert captured.out.startswith("Generated solution (rows = latitude")
     assert "P1/R1" in captured.out
     assert "P2*/R1" in captured.out
@@ -115,7 +119,7 @@ def test_main_writes_html_or_reports_output_error(
 
     if writable:
         assert code == 0
-        assert captured.err == ""
+        assert captured.err.startswith("Phase timings:\n")
         assert "HTML solution written to" in captured.out
         content = output.read_text(encoding="utf-8")
         assert content.startswith("<!doctype html>")

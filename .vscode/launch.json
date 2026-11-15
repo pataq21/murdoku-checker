@@ -5,7 +5,7 @@
             "name": "Debug Murdoku solution creator",
             "type": "debugpy",
             "request": "launch",
-            "module": "murdoku_checker.mains.main_generate_solution",
+            "module": "murdoku_checker.mains.main_generate_new_puzzle",
             "args": [
                 "inputs\\generation\\example.json",
                 "--format",

@@ -11,6 +11,7 @@ from murdoku_checker.apps.solution_creator import (
     generate_specification,
 )
 from murdoku_checker.domain import GenerationConfig
+from murdoku_checker.mains.phase_timings import PhaseTimings, log_run_timings
 from murdoku_checker.mains.solution_display import format_generated_solution
 from murdoku_checker.mains.solution_display_html import format_solution_html
 
@@ -47,6 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    with log_run_timings() as timings:
+        return _run(argv, timings)
+
+
+def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.format == "html" and args.output is None:
@@ -57,7 +63,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--output must not overwrite the input configuration")
 
     try:
-        config = GenerationConfig.model_validate_json(args.config.read_bytes())
+        with timings.phase("load_config"):
+            config = GenerationConfig.model_validate_json(args.config.read_bytes())
     except (OSError, ValidationError) as error:
         print(
             f"Error loading generation config '{args.config}': {error}",
@@ -65,9 +72,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 1
 
-    specification = generate_specification(config)
+    with timings.phase("generate_specification"):
+        specification = generate_specification(config)
     try:
-        generated = generate_solution(specification, solver_logs=args.solver_logs)
+        with timings.phase("generate_solution"):
+            generated = generate_solution(specification, solver_logs=args.solver_logs)
     except RuntimeError as error:
         print(f"Error generating solution: {error}", file=sys.stderr)
         return 1
@@ -80,43 +89,46 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     if args.format == "text":
-        print(format_generated_solution(generated))
+        with timings.phase("output"):
+            print(format_generated_solution(generated))
         return 0
     if args.format == "html":
-        content = format_solution_html(generated)
         try:
-            args.output.write_text(content, encoding="utf-8")
+            with timings.phase("output"):
+                content = format_solution_html(generated)
+                args.output.write_text(content, encoding="utf-8")
+                print(f"HTML solution written to '{args.output.resolve()}'")
         except OSError as error:
             print(f"Error writing HTML solution '{args.output}': {error}", file=sys.stderr)
             return 1
-        print(f"HTML solution written to '{args.output.resolve()}'")
         return 0
 
-    print(
-        json.dumps(
-            {
-                "config": config.model_dump(mode="json"),
-                "person_count": config.person_count,
-                "element_cell_count": config.element_cell_count,
-                "elements": [
-                    {
-                        "element": item.element.model_dump(mode="json"),
-                        "size": item.size,
-                        "count": item.count,
-                    }
-                    for item in specification.elements
-                ],
-                "map": generated.solution.map.model_dump(mode="json"),
-                "placements": dict(generated.solution.placements),
-                "victim": generated.victim,
-                "furniture": [
-                    {"element": item.element, "cells": item.cells}
-                    for item in generated.furniture
-                ],
-            },
-            indent=2,
+    with timings.phase("output"):
+        print(
+            json.dumps(
+                {
+                    "config": config.model_dump(mode="json"),
+                    "person_count": config.person_count,
+                    "element_cell_count": config.element_cell_count,
+                    "elements": [
+                        {
+                            "element": item.element.model_dump(mode="json"),
+                            "size": item.size,
+                            "count": item.count,
+                        }
+                        for item in specification.elements
+                    ],
+                    "map": generated.solution.map.model_dump(mode="json"),
+                    "placements": dict(generated.solution.placements),
+                    "victim": generated.victim,
+                    "furniture": [
+                        {"element": item.element, "cells": item.cells}
+                        for item in generated.furniture
+                    ],
+                },
+                indent=2,
+            )
         )
-    )
     return 0
 
 

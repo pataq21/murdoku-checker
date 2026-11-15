@@ -55,6 +55,12 @@ victima y muebles) y `pool`, una lista de reglas con el formato de `rules.json`.
 codigo 1 y sin salida JSON parcial. El pool no es aun un puzle terminado:
 la seleccion de pistas y la comprobacion de unicidad son etapas posteriores.
 
+Cuando se genera el pool, stderr muestra `Generated rules per person:` con
+el total de reglas de cada persona y un desglose por `rule.type`, antes del
+resumen de tiempos. Cada regla `any_of` cuenta una sola vez; sus condiciones
+internas no se cuentan como reglas adicionales. Las personas sin pistas
+aparecen con `total=0`.
+
 ## Generacion de soluciones aleatorias (solution_creator)
 
 La primera etapa de `solution_creator` genera una especificacion, todavia sin
@@ -158,6 +164,17 @@ Estan desactivados por defecto en los comandos y activados en la configuracion
 de depuracion de VS Code (F5). Desde Python se pueden activar con
 `solver_logs=True` en `generate_solution`, `check_solutions` y los metodos
 de resolucion de sus modelos.
+
+### Tiempos por fase
+
+Los tres puntos de entrada (`murdoku-checker`, `murdoku-creator` y
+`murdoku-generate`) escriben siempre un resumen `Phase timings:` en stderr al
+terminar, con segundos por fase y un total. Se miden la carga y validacion,
+la generacion de la especificacion, `generate_solution`, `generate_pool` o
+`check_solutions`, segun el comando, y la salida. Solo aparecen las fases
+ejecutadas; si una falla, se incluye el tiempo transcurrido hasta el fallo.
+El total incluye tambien el procesamiento de argumentos. Los tiempos usan
+un reloj monotono y no alteran stdout ni los archivos generados.
 
 La configuracion tambien se puede leer con `GenerationConfig.model_validate_json`.
 El numero de personas es `min(rows, columns)`. El presupuesto de celdas con

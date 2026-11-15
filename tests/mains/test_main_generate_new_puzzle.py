@@ -7,7 +7,14 @@ from unittest.mock import patch
 import pytest
 
 from murdoku_checker.apps.pool_generator import generate_pool
-from murdoku_checker.domain import Map, Rules, Solution
+from murdoku_checker.domain import (
+    AnyOfRule,
+    CoordinateAxis,
+    InCoordinateRule,
+    Map,
+    Rules,
+    Solution,
+)
 from murdoku_checker.mains.main_generate_new_puzzle import main
 
 
@@ -27,7 +34,7 @@ def test_main_generates_solution_and_its_complete_pool(
 ) -> None:
     assert main([str(config_path)]) == 0
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert "Phase timings:\n" in captured.err
     data = json.loads(captured.out)
 
     solution_data = data["solution"]
@@ -44,6 +51,40 @@ def test_main_generates_solution_and_its_complete_pool(
     assert pool
     assert all(rule.evaluate(solution) for rule in pool)
     assert list(pool) == generate_pool(solution)
+
+
+@pytest.mark.parametrize("output_format", ["json", "html"])
+def test_main_logs_rule_totals_per_person_and_type(
+    config_path: Path, capsys: pytest.CaptureFixture[str], output_format: str
+) -> None:
+    row = InCoordinateRule(person="person_1", axis=CoordinateAxis.ROW, value=0)
+    column = InCoordinateRule(person="person_1", axis=CoordinateAxis.COLUMN, value=0)
+    pool = {
+        "person_2": [],
+        "person_1": [row, column, AnyOfRule(person="person_1", conditions=(row, column))],
+    }
+    with patch(
+        "murdoku_checker.mains.main_generate_new_puzzle.generate_pool",
+        return_value=pool,
+    ):
+        assert main(
+            [
+                str(config_path),
+                "--format", output_format,
+                "--output", str(config_path.parent / "solution.html"),
+            ]
+        ) == 0
+
+    captured = capsys.readouterr()
+    assert (
+        "Generated rules per person:\n"
+        "  person_1: total=3\n"
+        "    any_of: 1\n"
+        "    in_coordinate: 2\n"
+        "  person_2: total=0\n"
+        "Phase timings:\n"
+    ) in captured.err
+    assert "Generated rules per person:" not in captured.out
 
 
 @pytest.mark.parametrize("failure", ["missing", "infeasible", "solver", "pool"])
@@ -69,6 +110,7 @@ def test_main_reports_errors_without_partial_output(
     captured = capsys.readouterr()
     assert code == 1
     assert captured.out == ""
+    assert "Generated rules per person:" not in captured.err
     assert {
         "missing": "Error loading generation config",
         "infeasible": "No solution for the generated specification",
@@ -98,5 +140,5 @@ def test_module_entry_point(config_path: Path) -> None:
         text=True,
         check=True,
     )
-    assert result.stderr == ""
+    assert "Phase timings:\n" in result.stderr
     assert json.loads(result.stdout)["pool"]

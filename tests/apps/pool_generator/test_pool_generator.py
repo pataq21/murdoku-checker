@@ -59,8 +59,12 @@ def candidates(solution: Solution) -> list[Rule]:
 
 
 @pytest.fixture(scope="module")
-def pool(solution: Solution) -> list[Rule]:
+def pool(solution: Solution) -> dict[str, list[Rule]]:
     return generate_pool(solution)
+
+
+def flatten_pool(pool: dict[str, list[Rule]]) -> list[Rule]:
+    return [rule for rules in pool.values() for rule in rules]
 
 
 def test_candidates_cover_all_simple_families_and_unique_same_person_pairs(
@@ -91,11 +95,14 @@ def test_candidates_cover_all_simple_families_and_unique_same_person_pairs(
 
 
 def test_pool_contains_only_true_rules_and_rejects_every_false_candidate(
-    solution: Solution, candidates: list[Rule], pool: list[Rule]
+    solution: Solution, candidates: list[Rule], pool: dict[str, list[Rule]]
 ) -> None:
-    assert pool
-    assert all(rule.evaluate(solution) for rule in pool)
-    accepted = set(pool)
+    pooled_rules = flatten_pool(pool)
+    assert pool.keys() == solution.placements.keys()
+    assert all(rule.person == person for person, rules in pool.items() for rule in rules)
+    assert pooled_rules
+    assert all(rule.evaluate(solution) for rule in pooled_rules)
+    accepted = set(pooled_rules)
     rejected = [rule for rule in candidates if not rule.evaluate(solution)]
     assert rejected
     assert not accepted.intersection(rejected)
@@ -127,10 +134,13 @@ def test_pool_contains_only_true_rules_and_rejects_every_false_candidate(
     ids=lambda value: value.description if hasattr(value, "description") else str(value),
 )
 def test_expected_clues_are_accepted_or_rejected(
-    rule: Rule, expected: bool, candidates: list[Rule], pool: list[Rule]
+    rule: Rule,
+    expected: bool,
+    candidates: list[Rule],
+    pool: dict[str, list[Rule]],
 ) -> None:
     assert rule in candidates
-    assert (rule in pool) is expected
+    assert (rule in pool[rule.person]) is expected
 
 
 @pytest.mark.parametrize(
@@ -156,7 +166,7 @@ def test_expected_clues_are_accepted_or_rejected(
 )
 def test_disjunctions_use_candidates_before_filtering(
     first: Rule, second: Rule, expected: bool,
-    candidates: list[Rule], pool: list[Rule],
+    candidates: list[Rule], pool: dict[str, list[Rule]],
 ) -> None:
     matching = [
         rule for rule in candidates
@@ -164,7 +174,7 @@ def test_disjunctions_use_candidates_before_filtering(
         and frozenset(rule.conditions) == frozenset((first, second))
     ]
     assert len(matching) == 1
-    assert (matching[0] in pool) is expected
+    assert (matching[0] in pool[matching[0].person]) is expected
 
 
 def test_unique_clues_are_removed_when_another_person_shares_the_place() -> None:
@@ -180,8 +190,8 @@ def test_unique_clues_are_removed_when_another_person_shares_the_place() -> None
     pool = generate_pool(solution)
 
     for element in (RoomElement(value="a"), FeatureElement(value="carpet")):
-        assert InRule(person="Alice", element=element) in pool
-        assert InRule(person="Alice", element=element, is_unique=True) not in pool
+        assert InRule(person="Alice", element=element) in pool["Alice"]
+        assert InRule(person="Alice", element=element, is_unique=True) not in pool["Alice"]
 
 
 def test_sparse_coordinates_bound_offsets_by_real_map_distances() -> None:
@@ -211,7 +221,7 @@ def test_sparse_coordinates_bound_offsets_by_real_map_distances() -> None:
 
 
 def test_pool_order_does_not_depend_on_input_insertion_order(
-    solution: Solution, pool: list[Rule]
+    solution: Solution, pool: dict[str, list[Rule]]
 ) -> None:
     reordered = Solution(
         map=Map(cells=tuple(reversed(solution.map.cells))),
@@ -222,7 +232,7 @@ def test_pool_order_does_not_depend_on_input_insertion_order(
 
 
 def test_no_people_produces_an_empty_pool() -> None:
-    assert generate_pool(Solution(map=Map(), placements={})) == []
+    assert generate_pool(Solution(map=Map(), placements={})) == {}
 
 
 def test_person_outside_map_is_reported_instead_of_silently_filtered() -> None:
@@ -239,10 +249,11 @@ def test_pool_integrates_with_generated_solution_serialization_and_solver() -> N
     assert generated is not None
 
     pool = generate_pool(generated.solution)
-    assert any(rule.person == generated.victim for rule in pool)
-    rules = Rules(rules=tuple(pool))
+    assert pool[generated.victim]
+    pooled_rules = flatten_pool(pool)
+    rules = Rules(rules=tuple(pooled_rules))
     assert Rules.model_validate_json(rules.model_dump_json()) == rules
-    assert all(rule.description and rule.difficulty > 0 for rule in pool)
+    assert all(rule.description and rule.difficulty > 0 for rule in pooled_rules)
 
     input_ = MurdokuInput(
         map=generated.solution.map,
