@@ -112,7 +112,7 @@ def test_load_input_rules_reads_rules_json_from_case_directory(
     assert rules.rules == ()
 
 
-def test_main_loads_map_and_prints_summary(
+def test_main_prints_first_solution_for_ambiguous_puzzle(
     tmp_path: Path,
     capsys: object,
 ) -> None:
@@ -155,12 +155,8 @@ def test_main_loads_map_and_prints_summary(
 
     assert exit_code == 0
     assert captured.out.startswith(
-        f"Loaded map from '{input_directory / 'map.json'}' with 2 cells.\n"
-        f"Loaded elements from '{input_directory / 'elements.json'}' "
-        "with 0 elements.\n"
-        f"Loaded people from '{input_directory / 'people.json'}' with 2 people.\n"
-        f"Loaded rules from '{input_directory / 'rules.json'}' with 1 rules.\n"
         "Multiple solutions (at least 2). Showing the first.\n"
+        "First solution ("
     )
     assert captured.out.count("First solution (") == 1
     assert "P1 = Alice" in captured.out
@@ -168,8 +164,9 @@ def test_main_loads_map_and_prints_summary(
     assert captured.err == ""
 
 
-def test_main_prints_unique_solution_without_solver_logs(
-    tmp_path: Path, capfd: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("solver_logs", [False, True])
+def test_main_prints_unique_solution_with_optional_solver_logs(
+    tmp_path: Path, capfd: pytest.CaptureFixture[str], solver_logs: bool
 ) -> None:
     input_directory = tmp_path / "case"
     write_map(
@@ -182,7 +179,10 @@ def test_main_prints_unique_solution_without_solver_logs(
     )
     write_rules(input_directory, {"rules": []})
 
-    exit_code = main([str(input_directory)])
+    arguments = [str(input_directory)]
+    if solver_logs:
+        arguments.append("--solver-logs")
+    exit_code = main(arguments)
     captured = capfd.readouterr()
 
     assert exit_code == 0
@@ -192,7 +192,11 @@ def test_main_prints_unique_solution_without_solver_logs(
     assert "R1 = comedor" in captured.out
     assert "Starting CP-SAT" not in captured.out
     assert "CpSolverResponse" not in captured.out
-    assert captured.err == ""
+    if solver_logs:
+        assert "Starting CP-SAT" in captured.err
+        assert "CpSolverResponse" in captured.err
+    else:
+        assert captured.err == ""
 
 
 def test_main_delegates_to_solution_checker(tmp_path: Path) -> None:

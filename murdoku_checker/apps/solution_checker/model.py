@@ -4,6 +4,7 @@ from types import MappingProxyType
 
 from ortools.sat.python import cp_model
 
+from murdoku_checker.apps.solver_logging import configure_solver_logging
 from murdoku_checker.domain import MurdokuInput, Position
 from murdoku_checker.domain.placement_variables import Variables
 
@@ -46,15 +47,21 @@ class OptimizationModel:
     model: cp_model.CpModel
     variables: Variables = field(default_factory=lambda: MappingProxyType({}))
 
-    def solve(self, max_solutions: int | None = 2) -> int:
+    def solve(
+        self, max_solutions: int | None = 2, *, solver_logs: bool = False
+    ) -> int:
         """Count the solutions of the model, stopping at max_solutions.
 
         The default stops at 2, enough to tell no, a unique or several solutions
         apart. Use None to enumerate all of them.
         """
-        return self.solve_with_solution(max_solutions).count
+        return self.solve_with_solution(
+            max_solutions, solver_logs=solver_logs
+        ).count
 
-    def solve_with_solution(self, max_solutions: int | None = 2) -> SolveResult:
+    def solve_with_solution(
+        self, max_solutions: int | None = 2, *, solver_logs: bool = False
+    ) -> SolveResult:
         """Count solutions up to the limit, retaining only the first placement.
 
         A count of 1 proves uniqueness only if the limit is at least 2 or None.
@@ -62,6 +69,7 @@ class OptimizationModel:
         means no solution was found.
         """
         solver = cp_model.CpSolver()
+        configure_solver_logging(solver, solver_logs)
         solver.parameters.enumerate_all_solutions = True
         counter = _SolutionCounter(self.variables, max_solutions)
 

@@ -38,6 +38,163 @@ Las clases concretas son `NextToRule`, `NotNextToRule`, `InRule`,
 Todas incluyen su `person`; las reglas anidadas en `any_of` heredan la persona
 de la disyuncion cuando se cargan desde JSON.
 
+## Generacion de soluciones aleatorias (solution_creator)
+
+La primera etapa de `solution_creator` genera una especificacion, todavia sin
+coordenadas, habitaciones construidas ni solucion CP-SAT:
+
+```python
+from murdoku_checker.apps.solution_creator import generate_solution, generate_specification
+from murdoku_checker.domain import GenerationConfig
+
+config = GenerationConfig(
+    rows=3,
+    columns=3,
+    element_coverage_percent=50,
+    element_type_count=3,
+    room_count=3,
+    seed=17,
+)
+specification = generate_specification(config)
+generated = generate_solution(specification)
+if generated is None:
+    print("No solution for the generated specification.")
+else:
+    solution = generated.solution
+```
+
+Para probarlo desde la consola con [la configuracion de ejemplo](inputs/generation/example.json):
+
+```powershell
+uv run murdoku-creator inputs\generation\example.json
+```
+
+Para visualizar la cuadricula con el visor compartido `solution_display`:
+
+```powershell
+uv run murdoku-creator inputs\generation\example.json --format text
+```
+
+El modo texto muestra personas, habitaciones, celdas bloqueadas y una leyenda.
+Sin `--format` la salida sigue siendo JSON; tambien se puede indicar
+`--format json`.
+
+Para crear un mapa HTML visual y autocontenido:
+
+```powershell
+uv run murdoku-creator inputs\generation\example.json --format html --output solution.html
+```
+
+Abre `solution.html` en el navegador. Funciona sin conexion, JavaScript ni
+dependencias externas. F5 genera este archivo en la raiz del proyecto y
+mantiene activados los logs del solver.
+Cada habitacion tiene un color y bordes marcados;
+los muebles ocupables y bloqueados tienen estilos distintos. Cada ejemplar
+tiene una etiqueta propia, y los muebles de dos celdas se dibujan como una
+sola pieza horizontal o vertical. Las personas se superponen a su celda y
+la leyenda incluye nombres, tamaños y coordenadas. En pantallas pequeñas,
+la cuadricula se puede desplazar sin comprimir las celdas.
+
+`--output` es obligatorio y exclusivo del modo HTML. La carpeta de destino
+debe existir; un archivo de salida existente se reemplaza. No se permite usar
+la propia configuracion como destino. Los errores de escritura se notifican
+en stderr con codigo 1. JSON y texto mantienen su salida por consola.
+
+El punto de entrada `main_generate_solution` prepara la especificacion y resuelve
+su colocacion mediante CP-SAT. Tambien se puede ejecutar como modulo:
+
+```powershell
+uv run python -m murdoku_checker.mains.main_generate_solution inputs\generation\example.json
+```
+
+La salida es JSON con la configuracion, `person_count`, `element_cell_count`,
+los tipos generados (`element`, `size`, `count`), `map`, `placements`, `victim`
+y `furniture`.
+`map.cells` contiene todas las celdas con su habitacion y sus features.
+`placements` asigna a cada nombre `person_1`, `person_2`, etc. sus coordenadas
+`[fila, columna]`. Cada entrada de `furniture` identifica un ejemplar mediante
+su tipo (`element`) y sus coordenadas (`cells`), distinguiendo asi ejemplares
+del mismo tipo aunque se toquen.
+`victim` identifica a la ultima persona (`person_N`), que comparte habitacion
+con exactamente otra persona. El visor de texto la marca con `*`; en HTML
+tambien tiene un color distintivo y aparece identificada en la leyenda.
+
+Se puede cambiar el JSON de entrada para probar otros parametros. Los errores
+de lectura, validacion o resolucion se muestran en stderr con codigo de salida
+1, sin JSON parcial; una generacion correcta devuelve 0. Si CP-SAT demuestra
+que no existe colocacion, se informa de ello: no se cambian parametros,
+tamaños ni ocupabilidad, ni se generan especificaciones nuevas automaticamente.
+Un estado no concluyente del solver se informa como error, no como imposibilidad.
+
+### Logs de CP-SAT
+
+Ambos comandos admiten `--solver-logs` para mostrar las estadisticas iniciales
+del modelo, presolve, progreso de busqueda y resumen final del solver:
+
+```powershell
+uv run murdoku-creator inputs\generation\example.json --format text --solver-logs
+uv run murdoku-checker inputs\so_easy\example1 --solver-logs
+```
+
+Los logs se envian a stderr para mantener stdout limpio en JSON, texto y HTML.
+Estan desactivados por defecto en los comandos y activados en la configuracion
+de depuracion de VS Code (F5). Desde Python se pueden activar con
+`solver_logs=True` en `generate_solution`, `check_solutions` y los metodos
+de resolucion de sus modelos.
+
+La configuracion tambien se puede leer con `GenerationConfig.model_validate_json`.
+El numero de personas es `min(rows, columns)`. El presupuesto de celdas con
+muebles es `round(rows * columns * element_coverage_percent / 100)`: se redondea
+al entero mas cercano y, en empates, al par (4.5 da 4; 5.5 da 6). Puede dar cero.
+El porcentaje mide celdas cubiertas, no el numero de ejemplares.
+
+Todos los tipos deben aparecer. Se rechaza la configuracion si no hay al menos
+una celda por tipo, si hay cobertura positiva sin tipos o si hay mas habitaciones
+que celdas. Por ejemplo, 3x3 con 5% de cobertura y tres tipos es incompatible.
+Las dimensiones y habitaciones son positivas; el porcentaje va de 0 a 100 y
+el numero de tipos puede ser cero. No se aceptan campos adicionales ni
+conversiones implicitas de tipos.
+
+Cada entrada de `specification.elements` contiene un `element` del catalogo,
+un `size` de 1 o 2 celdas y un `count` de ejemplares. Los nombres generados son
+`element_1`, `element_2`, etc. La ocupabilidad y el tamaño se eligen por tipo:
+todos los ejemplares de un tipo comparten ambas propiedades. Los tamaños se
+eligen entre combinaciones compatibles con el presupuesto; despues se añaden
+ejemplares hasta cubrirlo exactamente, sin solapamientos previstos. Esto evita
+fallos aleatorios por falta de espacio o por un presupuesto impar con tipos
+exclusivamente de tamaño dos.
+
+La semilla permite repetir la especificacion en el mismo entorno sin modificar
+el generador aleatorio global. Si se omite, se usa una nueva fuente de azar.
+El catalogo existente `Element` no cambia: tamaño y cantidad pertenecen a la
+especificacion de generacion.
+
+La primera etapa solo garantiza la capacidad numerica. La segunda busca una
+colocacion que respeta estas restricciones:
+
+- Exactamente `room_count` habitaciones no vacias. Cada una esta conectada por
+  lados, puede tener forma irregular y no tiene un minimo de cuatro celdas.
+- Cada celda pertenece a una habitacion y admite como maximo un mueble.
+- Cada ejemplar ocupa exactamente su tamaño; los de dos celdas son contiguos
+  horizontal o verticalmente y estan dentro de la misma habitacion.
+- Cada persona ocupa una celda, con como maximo una persona por fila y columna.
+  Solo puede coincidir con muebles ocupables.
+- La ultima persona es la victima. Su habitacion contiene exactamente dos
+  personas en total; las demas habitaciones no tienen restricciones adicionales
+  de cantidad de personas. Con menos de dos personas no hay solucion. Tampoco
+  hay solucion con una sola habitacion y mas de dos personas.
+
+El resultado reutiliza `Solution` y conserva la especificacion original y los
+ejemplares colocados en `GeneratedSolution`. Las habitaciones reciben nombres
+`room_1`, `room_2`, etc. El solver usa una sola hebra y busqueda aleatorizada con
+semilla: la misma entrada y semilla son reproducibles en el mismo entorno.
+No se garantiza muestreo uniforme ni que semillas diferentes siempre produzcan
+tableros distintos.
+
+Esta etapa genera una solucion objetivo, no un puzle con pistas ni una prueba
+de unicidad. La seleccion de pistas y los demas atributos narrativos de las
+personas (genero, gafas, etc.) quedan para etapas posteriores.
+
 ## Casos
 
 Cada problema se guarda por dificultad dentro de `inputs/`:
@@ -303,7 +460,7 @@ Tambien puede ejecutarse como modulo:
 uv run python -m murdoku_checker.mains.main_verify_puzzle inputs/so_easy/example1
 ```
 
-La salida incluye el resumen de carga y uno de estos resultados:
+La salida comienza directamente con uno de estos resultados, sin mensajes de carga:
 
 - `No solution.`: el caso no tiene solucion; no se imprime una cuadricula.
 - `Unique solution.`: hay exactamente una solucion.

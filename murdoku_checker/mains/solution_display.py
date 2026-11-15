@@ -1,16 +1,62 @@
+from collections.abc import Sequence
+
 from murdoku_checker.apps.solution_checker.model import Placement
-from murdoku_checker.domain import MurdokuInput
+from murdoku_checker.domain import GeneratedSolution, Map, MurdokuInput, Position
 
 
 def format_solution(input_: MurdokuInput, solution: Placement) -> str:
     """Render a placement with labelled coordinates, people and rooms."""
-    cells = input_.map.cells
+    return _format_placement(
+        input_.map,
+        solution,
+        tuple(person.name for person in input_.people.people),
+        frozenset(
+            cell.position
+            for cell in input_.map.cells
+            if not input_.is_cell_occupiable(cell)
+        ),
+        "First solution",
+    )
+
+
+def format_generated_solution(generated: GeneratedSolution) -> str:
+    """Render a generated board without inventing person attributes."""
+    blocked_elements = {
+        item.element.name
+        for item in generated.specification.elements
+        if not item.element.is_occupiable
+    }
+    solution = generated.solution
+    return _format_placement(
+        solution.map,
+        solution.placements,
+        tuple(solution.placements),
+        frozenset(
+            cell.position
+            for cell in solution.map.cells
+            if blocked_elements.intersection(cell.features)
+        ),
+        "Generated solution",
+        victim=generated.victim,
+    )
+
+
+def _format_placement(
+    map_: Map,
+    solution: Placement,
+    person_names: Sequence[str],
+    blocked_positions: frozenset[Position],
+    title: str,
+    *,
+    victim: str | None = None,
+) -> str:
+    cells = map_.cells
     if not cells:
-        return "First solution: empty map."
+        return f"{title}: empty map."
 
     people = {
-        person.name: f"P{index}"
-        for index, person in enumerate(input_.people.people, start=1)
+        name: f"P{index}" + ("*" if name == victim else "")
+        for index, name in enumerate(person_names, start=1)
     }
     rooms = {
         room: f"R{index}"
@@ -21,7 +67,7 @@ def format_solution(input_: MurdokuInput, solution: Placement) -> str:
     for cell in cells:
         position = (cell.latitude, cell.longitude)
         marker = occupants.get(
-            position, "." if input_.is_cell_occupiable(cell) else "#"
+            position, "#" if position in blocked_positions else "."
         )
         tokens[position] = f"{marker}/{rooms[cell.room]}"
 
@@ -33,7 +79,7 @@ def format_solution(input_: MurdokuInput, solution: Placement) -> str:
     )
     row_width = len(str(latitudes[-1]))
     lines = [
-        "First solution (rows = latitude, columns = longitude):",
+        f"{title} (rows = latitude, columns = longitude):",
         " " * (row_width + 3)
         + "   ".join(f"{longitude:^{width}}" for longitude in longitudes).rstrip(),
     ]
@@ -51,8 +97,13 @@ def format_solution(input_: MurdokuInput, solution: Placement) -> str:
             "  . = unoccupied cell; # = blocked cell; blank = no cell",
         ]
     )
+    if victim is not None:
+        lines.append("  * = victim")
     for name, label in people.items():
         latitude, longitude = solution[name]
-        lines.append(f"  {label} = {name} (latitude={latitude}, longitude={longitude})")
+        role = " (victim)" if name == victim else ""
+        lines.append(
+            f"  {label} = {name}{role} (latitude={latitude}, longitude={longitude})"
+        )
     lines.extend(f"  {label} = {room}" for room, label in rooms.items())
     return "\n".join(lines)

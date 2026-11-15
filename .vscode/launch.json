@@ -2,13 +2,19 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Murdoku example",
+            "name": "Debug Murdoku solution creator",
             "type": "debugpy",
             "request": "launch",
-            "module": "murdoku_checker.mains.main_verify_puzzle",
+            "module": "murdoku_checker.mains.main_generate_solution",
             "args": [
-                "inputs/so_easy/example1"
+                "inputs\\generation\\example.json",
+                "--format",
+                "html",
+                "--output",
+                "${workspaceFolder}\\solution.html",
+                "--solver-logs"
             ],
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": true
         }

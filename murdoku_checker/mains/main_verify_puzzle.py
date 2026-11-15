@@ -44,6 +44,11 @@ def build_parser() -> argparse.ArgumentParser:
             "elements.json, people.json, and rules.json"
         ),
     )
+    parser.add_argument(
+        "--solver-logs",
+        action="store_true",
+        help="stream CP-SAT model, presolve and search logs to stderr",
+    )
     return parser
 
 
@@ -64,7 +69,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     try:
-        result = check_solutions(input_)
+        result = check_solutions(input_, solver_logs=args.solver_logs)
     except RuntimeError as error:
         print(f"Error solving input '{args.input_directory}': {error}", file=sys.stderr)
         return 1

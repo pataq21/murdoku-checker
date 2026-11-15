@@ -1,6 +1,11 @@
 from murdoku_checker.domain import (
     Element,
+    ElementSpecification,
     Elements,
+    FurniturePlacement,
+    GeneratedSolution,
+    GenerationConfig,
+    GenerationSpecification,
     Gender,
     GridCell,
     Map,
@@ -8,8 +13,12 @@ from murdoku_checker.domain import (
     People,
     Person,
     Rules,
+    Solution,
 )
-from murdoku_checker.mains.solution_display import format_solution
+from murdoku_checker.mains.solution_display import (
+    format_generated_solution,
+    format_solution,
+)
 
 
 def test_grid_shows_coordinates_rooms_obstacles_and_missing_cells() -> None:
@@ -89,3 +98,57 @@ def test_grid_for_empty_map() -> None:
     input_ = MurdokuInput(map=Map(), people=People(), rules=Rules())
 
     assert format_solution(input_, {}) == "First solution: empty map."
+
+
+def test_generated_grid_shows_people_rooms_and_blocked_cells() -> None:
+    specification = GenerationSpecification(
+        config=GenerationConfig(
+            rows=2,
+            columns=3,
+            element_coverage_percent=33,
+            element_type_count=2,
+            room_count=1,
+        ),
+        elements=(
+            ElementSpecification(Element(name="rock"), 1, 1),
+            ElementSpecification(
+                Element(name="carpet", is_occupiable=True), 1, 1
+            ),
+        ),
+    )
+    generated = GeneratedSolution(
+        specification=specification,
+        solution=Solution(
+            map=Map(
+                cells=(
+                    GridCell(
+                        latitude=0, longitude=0, room="room_1", features=("rock",)
+                    ),
+                    GridCell(
+                        latitude=0, longitude=1, room="room_1", features=("carpet",)
+                    ),
+                    GridCell(latitude=0, longitude=2, room="room_1"),
+                    GridCell(latitude=1, longitude=0, room="room_1"),
+                    GridCell(latitude=1, longitude=1, room="room_1"),
+                    GridCell(latitude=1, longitude=2, room="room_1"),
+                )
+            ),
+            placements={"person_1": (0, 2), "person_2": (1, 0)},
+        ),
+        victim="person_2",
+        furniture=(
+            FurniturePlacement("rock", ((0, 0),)),
+            FurniturePlacement("carpet", ((0, 1),)),
+        ),
+    )
+
+    output = format_generated_solution(generated)
+
+    assert output.startswith("Generated solution (rows = latitude")
+    assert "#/R1" in output
+    assert "./R1" in output
+    assert "P2*/R1" in output
+    assert "P1 = person_1 (latitude=0, longitude=2)" in output
+    assert "P2* = person_2 (victim) (latitude=1, longitude=0)" in output
+    assert "* = victim" in output
+    assert "R1 = room_1" in output

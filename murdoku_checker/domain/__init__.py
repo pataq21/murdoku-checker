@@ -1,5 +1,14 @@
 from murdoku_checker.domain.element import Element
 from murdoku_checker.domain.elements import Elements
+from murdoku_checker.domain.generated_solution import (
+    FurniturePlacement,
+    GeneratedSolution,
+)
+from murdoku_checker.domain.generation_config import GenerationConfig
+from murdoku_checker.domain.generation_specification import (
+    ElementSpecification,
+    GenerationSpecification,
+)
 from murdoku_checker.domain.grid_cell import GridCell, Position
 from murdoku_checker.domain.map import Map
 from murdoku_checker.domain.murdoku_input import MurdokuInput
@@ -37,10 +46,15 @@ __all__ = [
     "CoordinateAxis",
     "Direction",
     "Element",
+    "ElementSpecification",
     "Elements",
     "FeatureElement",
     "FeatureTargetRelation",
+    "FurniturePlacement",
     "Gender",
+    "GeneratedSolution",
+    "GenerationConfig",
+    "GenerationSpecification",
     "GridCell",
     "InCoordinateRule",
     "InRule",
