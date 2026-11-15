@@ -85,7 +85,7 @@ def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
             return 1
     try:
         with timings.phase("generate_pool"):
-            pool = generate_pool(generated.solution)
+            pool = generate_pool(generated.solution, victim=generated.victim)
     except ValueError as error:
         print(f"Error generating clue pool: {error}", file=sys.stderr)
         return 1

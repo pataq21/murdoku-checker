@@ -86,16 +86,23 @@ def _iter_simple_rules(solution: Solution, person: str) -> Iterator[Rule]:
                     )
 
 
-def iter_candidate_rules(solution: Solution) -> Iterator[Rule]:
+def iter_candidate_rules(
+    solution: Solution, *, victim: str | None = None
+) -> Iterator[Rule]:
     """Enumerate simple clues and unordered, unnested pairs per person.
 
     Targets and exact offsets come from the map. Truth is deliberately not
     checked here, so disjunctions can contain a false alternative.
+    The victim is skipped as protagonist, but remains available as a target.
     """
+    if victim is not None and victim not in solution.placements:
+        raise ValueError(f"Unknown victim: {victim}")
     people = sorted(solution.placements)
     for person in people:
         solution.cell_of(person)
     for person in people:
+        if person == victim:
+            continue
         simple = tuple(_iter_simple_rules(solution, person))
         yield from simple
         for first, second in combinations(simple, 2):

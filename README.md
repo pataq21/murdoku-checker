@@ -231,19 +231,26 @@ personas (genero, gafas, etc.) quedan para etapas posteriores.
 
 ## Pool de pistas verdaderas (pool_generator)
 
-La app `pool_generator` recibe una `Solution` objetivo y devuelve una lista de
-objetos `Rule` cuyo metodo `evaluate(solution)` devuelve `True`:
+La app `pool_generator` recibe una `Solution` objetivo y devuelve un diccionario
+`dict[str, list[Rule]]`, agrupado por persona, con reglas verdaderas.
+Las disyunciones `any_of` solo se incluyen si exactamente una de sus
+condiciones es verdadera en la solucion objetivo; se excluyen las parejas
+verdadera + verdadera y falsa + falsa. La regla sigue teniendo semantica OR,
+no XOR, al evaluar otras soluciones.
 
 ```python
 from murdoku_checker.apps.pool_generator import generate_pool
 from murdoku_checker.domain import Rules
 
 # generated es el resultado no nulo de generate_solution(specification).
-pool = generate_pool(generated.solution)
-for rule in pool:
-    print(rule.description, rule.difficulty, sorted(rule.protagonists))
+pool = generate_pool(generated.solution, victim=generated.victim)
+for person, rules in pool.items():
+    for rule in rules:
+        print(person, rule.description, rule.difficulty, sorted(rule.protagonists))
 
-rules_json = Rules(rules=tuple(pool)).model_dump_json(indent=2)
+rules_json = Rules(
+    rules=tuple(rule for rules in pool.values() for rule in rules)
+).model_dump_json(indent=2)
 ```
 
 `iter_candidate_rules(solution)` permite recorrer los candidatos antes de
@@ -263,8 +270,13 @@ en el mapa objetivo y comprende:
 
 El orden es determinista, no se generan autorreferencias entre personas y los
 nombres de features repetidos en varias celdas solo se enumeran una vez.
-Se incluye a todas las personas, tambien a la victima. Una persona fuera del
-mapa provoca un error explicito; una solucion sin personas produce un pool vacio.
+El comando pasa `victim=generated.victim`: no se construyen candidatas ni una
+entrada de pool para la victima, cuyo texto propio es "es la victima".
+La victima sigue disponible como referencia en pistas de otras personas.
+Desde Python, `victim` es opcional porque una `Solution` no identifica a la
+victima; si se omite, se generan pistas para todas las personas.
+Una victima desconocida o una persona fuera del mapa provoca un error
+explicito; una solucion sin personas produce un pool vacio.
 
 El pool conserva las propiedades y la serializacion del catalogo existente.
 Solo se comprueba veracidad, no utilidad, dificultad objetivo ni minimalidad:
@@ -272,7 +284,8 @@ puede contener redundancias y tautologias, que se trataran en la seleccion de
 pistas. Con `k` reglas simples por persona se generan `k * (k - 1) / 2`
 disyunciones; el coste crece cuadraticamente. El iterador no materializa todos
 los candidatos juntos, pero `generate_pool` si conserva todas las pistas
-verdaderas en la lista final.
+aceptadas en el diccionario final. Con `v` reglas simples verdaderas y `f`
+falsas para una persona, el pool contiene `v * f` disyunciones.
 
 ## Casos
 

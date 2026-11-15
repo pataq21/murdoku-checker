@@ -87,6 +87,26 @@ def test_main_logs_rule_totals_per_person_and_type(
     assert "Generated rules per person:" not in captured.out
 
 
+def test_main_excludes_the_generated_victim_from_the_pool(
+    config_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with patch(
+        "murdoku_checker.mains.main_generate_new_puzzle.generate_pool",
+        wraps=generate_pool,
+    ) as build_pool:
+        assert main([str(config_path)]) == 0
+
+    solution = build_pool.call_args.args[0]
+    victim = build_pool.call_args.kwargs["victim"]
+    assert victim in solution.placements
+    captured = capsys.readouterr()
+    assert f"  {victim}: total=" not in captured.err
+    assert all(
+        f"  {person}: total=" in captured.err
+        for person in solution.placements if person != victim
+    )
+
+
 @pytest.mark.parametrize("failure", ["missing", "infeasible", "solver", "pool"])
 def test_main_reports_errors_without_partial_output(
     config_path: Path, capsys: pytest.CaptureFixture[str], failure: str

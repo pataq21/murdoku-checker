@@ -2,7 +2,7 @@
     "rows": 3,
     "columns": 3,
     "element_coverage_percent": 20,
-    "element_type_count": 3,
-    "room_count": 4,
+    "element_type_count": 2,
+    "room_count": 3,
     "seed": 2342342
 }

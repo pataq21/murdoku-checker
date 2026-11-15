@@ -1,8 +1,10 @@
 from collections import Counter
+from unittest.mock import patch
 
 import pytest
 
 from murdoku_checker.apps.pool_generator import generate_pool, iter_candidate_rules
+from murdoku_checker.apps.pool_generator import candidate_rules
 from murdoku_checker.apps.solution_checker import ModelBuilder
 from murdoku_checker.apps.solution_creator import generate_solution, generate_specification
 from murdoku_checker.domain import (
@@ -104,9 +106,34 @@ def test_pool_contains_only_true_rules_and_rejects_every_false_candidate(
     assert all(rule.evaluate(solution) for rule in pooled_rules)
     accepted = set(pooled_rules)
     rejected = [rule for rule in candidates if not rule.evaluate(solution)]
+    both_true = [
+        rule for rule in candidates
+        if isinstance(rule, AnyOfRule)
+        and all(condition.evaluate(solution) for condition in rule.conditions)
+    ]
     assert rejected
+    assert both_true
     assert not accepted.intersection(rejected)
-    assert accepted.union(rejected) == set(candidates)
+    assert not accepted.intersection(both_true)
+    assert accepted.union(rejected, both_true) == set(candidates)
+
+
+def test_pool_disjunction_count_is_true_candidates_times_false_candidates(
+    solution: Solution, candidates: list[Rule], pool: dict[str, list[Rule]]
+) -> None:
+    for person, rules in pool.items():
+        simple = [
+            rule for rule in candidates
+            if rule.person == person and not isinstance(rule, AnyOfRule)
+        ]
+        true_count = sum(rule.evaluate(solution) for rule in simple)
+        false_count = len(simple) - true_count
+        disjunctions = [rule for rule in rules if isinstance(rule, AnyOfRule)]
+        assert len(disjunctions) == true_count * false_count
+        assert all(
+            sum(condition.evaluate(solution) for condition in rule.conditions) == 1
+            for rule in disjunctions
+        )
 
 
 @pytest.mark.parametrize(
@@ -154,7 +181,7 @@ def test_expected_clues_are_accepted_or_rejected(
         (
             InRule(person="Alice", element=RoomElement(value="a")),
             InCoordinateRule(person="Alice", axis=CoordinateAxis.ROW, value=0),
-            True,
+            False,
         ),
         (
             InRule(person="Alice", element=RoomElement(value="b")),
@@ -235,6 +262,29 @@ def test_no_people_produces_an_empty_pool() -> None:
     assert generate_pool(Solution(map=Map(), placements={})) == {}
 
 
+@pytest.mark.parametrize("victim", ["Alice", "Bob"])
+def test_victim_candidates_are_not_built_but_other_pools_are_unchanged(
+    solution: Solution, pool: dict[str, list[Rule]], victim: str
+) -> None:
+    with patch(
+        "murdoku_checker.apps.pool_generator.candidate_rules._iter_simple_rules",
+        wraps=candidate_rules._iter_simple_rules,
+    ) as build_simple:
+        result = generate_pool(solution, victim=victim)
+
+    assert result == {person: rules for person, rules in pool.items() if person != victim}
+    assert [call.args[1] for call in build_simple.call_args_list] == sorted(result)
+    assert any(
+        isinstance(target, PersonElement) and target.value == victim
+        for rules in result.values() for rule in rules for target in rule.targets
+    )
+
+
+def test_unknown_victim_is_reported(solution: Solution) -> None:
+    with pytest.raises(ValueError, match="Unknown victim: missing"):
+        generate_pool(solution, victim="missing")
+
+
 def test_person_outside_map_is_reported_instead_of_silently_filtered() -> None:
     with pytest.raises(ValueError, match="Alice is placed outside the map"):
         generate_pool(Solution(map=Map(), placements={"Alice": (0, 0)}))
@@ -248,8 +298,8 @@ def test_pool_integrates_with_generated_solution_serialization_and_solver() -> N
     generated = generate_solution(generate_specification(config))
     assert generated is not None
 
-    pool = generate_pool(generated.solution)
-    assert pool[generated.victim]
+    pool = generate_pool(generated.solution, victim=generated.victim)
+    assert generated.victim not in pool
     pooled_rules = flatten_pool(pool)
     rules = Rules(rules=tuple(pooled_rules))
     assert Rules.model_validate_json(rules.model_dump_json()) == rules
