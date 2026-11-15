@@ -55,9 +55,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elements = load_input_elements(args.input_directory)
         people = load_input_people(args.input_directory)
         rules = load_input_rules(args.input_directory)
-        input_ = MurdokuInput(
-            map=map_, elements=elements, people=people, rules=rules
-        )
+        input_ = MurdokuInput(map=map_, elements=elements, people=people, rules=rules)
     except (OSError, ValidationError) as error:
         print(
             f"Error loading input '{args.input_directory}': {error}",
@@ -71,19 +69,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"Error solving input '{args.input_directory}': {error}", file=sys.stderr)
         return 1
 
-    map_path = args.input_directory / "map.json"
-    elements_path = args.input_directory / "elements.json"
-    people_path = args.input_directory / "people.json"
-    rules_path = args.input_directory / "rules.json"
-    print(f"Loaded map from '{map_path}' with {len(input_.map.cells)} cells.")
-    print(
-        f"Loaded elements from '{elements_path}' "
-        f"with {len(input_.elements.elements)} elements."
-    )
-    print(
-        f"Loaded people from '{people_path}' with {len(input_.people.people)} people."
-    )
-    print(f"Loaded rules from '{rules_path}' with {len(input_.rules.rules)} rules.")
     if result.first_solution is None:
         print("No solution.")
     else:
