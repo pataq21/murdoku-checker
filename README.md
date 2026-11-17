@@ -38,23 +38,56 @@ Las clases concretas son `NextToRule`, `NotNextToRule`, `InRule`,
 Todas incluyen su `person`; las reglas anidadas en `any_of` heredan la persona
 de la disyuncion cuando se cargan desde JSON.
 
-## Generacion de solucion y pool
+## Generacion del puzzle completo
 
-El comando de generacion ejecuta las etapas disponibles: crea una solucion
-objetivo y genera todas las pistas verdaderas respecto a ella:
+El comando de generacion crea una solucion objetivo, genera el pool de pistas
+verdaderas y selecciona un subconjunto optimo que garantiza solucion unica:
 
 ```powershell
-uv run murdoku-generate inputs\generation\example.json
+uv run murdoku-generate use_cases\generate-puzzle\inputs\example.json
 ```
 
 Tambien se puede ejecutar con
-`uv run python -m murdoku_checker.mains.main_generate_new_puzzle inputs\generation\example.json`.
+`uv run python -m murdoku_checker.mains.main_generate_new_puzzle use_cases\generate-puzzle\inputs\example.json`.
 La salida JSON incluye `config`, `elements`, `solution` (mapa, posiciones,
-victima y muebles) y `pool`, una lista de reglas con el formato de `rules.json`.
+victima y muebles), `pool`, `puzzle` y `optimization`.
+`pool` es una lista de reglas con el formato de `rules.json`.
 La lista agrupa las pistas por persona y no incluye pistas propias de la victima.
+`puzzle` es un `MurdokuInput` completo (mapa, catalogo de elementos, personas y
+solo las reglas seleccionadas). `optimization` indica `target_difficulty`,
+`total_difficulty`, `difficulty_error`, `rule_count` e `iterations`.
+Las personas sinteticas usan `gender: "Male"` como metadato; no interviene
+en el modelo de colocacion.
 `--solver-logs` envia los logs a stderr. Los errores se indican en stderr con
-codigo 1 y sin salida JSON parcial. El pool no es aun un puzle terminado:
-la seleccion de pistas y la comprobacion de unicidad son etapas posteriores.
+codigo 1 y sin salida JSON parcial.
+
+La configuracion de `generate-puzzle` requiere `target_difficulty`, un entero
+no negativo (por ejemplo, `"target_difficulty": 12`). `generate-solution`
+no lo requiere. El maestro CP-SAT minimiza primero el error absoluto entre
+la suma de dificultades y ese target; despues minimiza el numero de pistas.
+El peso lexicografico es `len(pool) + 1`, no una constante que pueda dejar
+de funcionar con pools grandes. Todos salvo `victim` deben aparecer entre los
+`protagonists` de alguna pista elegida, tambien como personas referenciadas.
+En esta fase se usa la victima como excepcion; no existe un asesino separado.
+
+El checker excluye la colocacion objetivo completa y busca una alternativa.
+Si existe, el maestro recibe un corte que exige alguna pista falsa en esa
+alternativa. Solo se devuelve un resultado tras probar el optimo del maestro
+y la ausencia de alternativas. Si el pool no permite cobertura o unicidad,
+o un solver termina sin resultado concluyente, el comando informa del error:
+no devuelve un puzzle ambiguo ni cambia la configuracion.
+
+Los tres formatos ejecutan todas las fases. Texto y HTML muestran tambien las
+pistas seleccionadas; HTML incluye una lista numerada bajo el tablero, tanto
+en el registro como en la copia opcional de `--output`. No muestra el pool
+completo. Cada ejecucion de `generate-puzzle` guarda `solution.html` con las
+personas colocadas y las pistas, y `puzzle.html` con el mismo mapa y pistas,
+pero sin posiciones de personas ni coordenadas en su leyenda. Se conservan
+los nombres y la identificacion de la victima. `--output` sigue copiando solo
+`solution.html`; `puzzle.html` queda en la carpeta de la ejecucion.
+El visor de `generate-solution` sigue sin pistas y no crea `puzzle.html`.
+El puzzle completo y sus metricas quedan siempre en `result.json`, junto a
+los HTML, dentro del registro.
 
 Cuando se genera el pool, stderr muestra `Generated rules per person:` con
 el total de reglas de cada persona y un desglose por `rule.type`, antes del
@@ -66,12 +99,55 @@ El mismo JSON de entrada acepta `rule_types`, una lista opcional de tipos de
 pistas que se generaran, por ejemplo `"rule_types": ["in", "in_coordinate", "any_of"]`.
 Los valores admitidos son `in`, `next_to`, `not_next_to`, `in_coordinate`,
 `room_relation`, `relative_position` y `any_of`. Si se omite, se habilitan todos;
-una lista vacia desactiva todas las pistas. Los tipos desconocidos se rechazan
+una lista vacia desactiva todas las pistas (y normalmente impide formar un
+puzzle con cobertura y unicidad). Los tipos desconocidos se rechazan
 al cargar la configuracion. `any_of` solo combina reglas simples de los tipos
 habilitados: seleccionarlo sin ningun tipo simple no produce pistas.
 Esta opcion no modifica la generacion del tablero ni de la solucion.
 La configuracion serializada incluye la lista efectiva de tipos, tambien cuando
 se usan los valores por defecto.
+
+## Registro de ejecuciones
+
+Los tres comandos crean automaticamente una carpeta unica por ejecucion en
+`use_cases/<caso-de-uso>/outputs/<fecha-UTC>_<id>/`, relativa al directorio
+de trabajo. La ruta aparece en stderr como `Run directory:` sin alterar
+el JSON o texto de stdout. `--runs-dir <carpeta>` cambia la carpeta padre.
+Los ejemplos originales se guardan en `inputs/` dentro de cada caso de uso;
+las carpetas `outputs/` por defecto se ignoran en Git.
+
+Cada ejecucion conserva:
+
+- `input.json`: copia exacta de la configuracion de generacion recibida.
+- `config.json`: configuracion efectiva, incluidos valores por defecto y semilla.
+  Si no se proporciono semilla, se elige una antes de generar la especificacion.
+  Este archivo se puede usar directamente como entrada para repetir la ejecucion.
+- En verificacion, `inputs/` sustituye a los dos archivos anteriores y conserva
+  `map.json`, `elements.json`, `people.json`, `rules.json` e `image.png` si existe.
+  Se resuelve la copia archivada, no los archivos originales.
+- `result.json`: resultado estructurado, independiente del formato de consola.
+  En generacion incluye tablero, muebles, posiciones y victima; en
+  `generate-puzzle`, todos los formatos incluyen tambien el pool, el puzzle
+  seleccionado y las metricas de optimizacion.
+  En verificacion incluye el primer resultado y el recuento limitado a dos.
+- `solution.html`: vista autocontenida del resultado. En verificacion es
+  un informe con la cuadricula textual; tambien se guarda `solution.txt`.
+- `puzzle.html`: solo en `generate-puzzle`, tablero y pistas seleccionadas sin
+  revelar la colocacion de las personas (tampoco en atributos HTML).
+- `run.json`: argumentos, directorio de trabajo, rutas de origen, fechas,
+  configuracion efectiva, version de Python y dependencias, revision Git y
+  cambios locales, tiempos por fase, codigo de salida y estado.
+- `run.log`: copia de stderr, incluidos los tiempos, los errores y los logs
+  de CP-SAT si se uso `--solver-logs`.
+
+No se reemplazan ejecuciones anteriores. Una ejecucion fallida conserva sus
+entradas disponibles, metadatos y diagnosticos, aunque no tenga resultado.
+Los errores al registrar una ejecucion son errores del comando (codigo 1),
+no se ignoran. Los errores de uso de argumentos se detectan antes de crear
+la carpeta. Las llamadas directas a las apps desde Python no crean registros.
+Una revision Git con cambios locales se indica en los metadatos, pero no se
+copia el codigo fuente: para reproducibilidad completa conviene usar un commit
+limpio y las versiones registradas.
 
 ## Generacion de soluciones aleatorias (solution_creator)
 
@@ -98,16 +174,16 @@ else:
     solution = generated.solution
 ```
 
-Para probarlo desde la consola con [la configuracion de ejemplo](inputs/generation/example.json):
+Para probarlo desde la consola con [la configuracion de ejemplo](use_cases/generate-solution/inputs/example.json):
 
 ```powershell
-uv run murdoku-creator inputs\generation\example.json
+uv run murdoku-creator use_cases\generate-solution\inputs\example.json
 ```
 
 Para visualizar la cuadricula con el visor compartido `solution_display`:
 
 ```powershell
-uv run murdoku-creator inputs\generation\example.json --format text
+uv run murdoku-creator use_cases\generate-solution\inputs\example.json --format text
 ```
 
 El modo texto muestra personas, habitaciones, celdas bloqueadas y una leyenda.
@@ -117,12 +193,12 @@ Sin `--format` la salida sigue siendo JSON; tambien se puede indicar
 Para crear un mapa HTML visual y autocontenido:
 
 ```powershell
-uv run murdoku-creator inputs\generation\example.json --format html --output solution.html
+uv run murdoku-creator use_cases\generate-solution\inputs\example.json --format html
 ```
 
-Abre `solution.html` en el navegador. Funciona sin conexion, JavaScript ni
-dependencias externas. F5 genera este archivo en la raiz del proyecto y
-mantiene activados los logs del solver.
+Abre `solution.html` dentro de la carpeta de la ejecucion indicada en stderr.
+Funciona sin conexion, JavaScript ni dependencias externas. F5 registra una
+ejecucion de `generate-puzzle` y mantiene activados los logs del solver.
 Cada habitacion tiene un color y bordes marcados;
 los muebles ocupables y bloqueados tienen estilos distintos. Cada ejemplar
 tiene una etiqueta propia, y los muebles de dos celdas se dibujan como una
@@ -130,8 +206,9 @@ sola pieza horizontal o vertical. Las personas se superponen a su celda y
 la leyenda incluye nombres, tamaños y coordenadas. En pantallas pequeñas,
 la cuadricula se puede desplazar sin comprimir las celdas.
 
-`--output` es obligatorio y exclusivo del modo HTML. La carpeta de destino
-debe existir; un archivo de salida existente se reemplaza. No se permite usar
+`--output` es opcional: permite guardar una copia HTML adicional. En
+`murdoku-creator` es exclusivo del modo HTML. La carpeta de destino
+debe existir; un archivo de copia existente se reemplaza. No se permite usar
 la propia configuracion como destino. Los errores de escritura se notifican
 en stderr con codigo 1. JSON y texto mantienen su salida por consola.
 
@@ -139,7 +216,7 @@ El punto de entrada `main_generate_solution` prepara la especificacion y resuelv
 su colocacion mediante CP-SAT. Tambien se puede ejecutar como modulo:
 
 ```powershell
-uv run python -m murdoku_checker.mains.main_generate_solution inputs\generation\example.json
+uv run python -m murdoku_checker.mains.main_generate_solution use_cases\generate-solution\inputs\example.json
 ```
 
 La salida es JSON con la configuracion, `person_count`, `element_cell_count`,
@@ -167,8 +244,8 @@ Ambos comandos admiten `--solver-logs` para mostrar las estadisticas iniciales
 del modelo, presolve, progreso de busqueda y resumen final del solver:
 
 ```powershell
-uv run murdoku-creator inputs\generation\example.json --format text --solver-logs
-uv run murdoku-checker inputs\so_easy\example1 --solver-logs
+uv run murdoku-creator use_cases\generate-solution\inputs\example.json --format text --solver-logs
+uv run murdoku-checker use_cases\verify-puzzle\inputs\so_easy\example1 --solver-logs
 ```
 
 Los logs se envian a stderr para mantener stdout limpio en JSON, texto y HTML.
@@ -185,7 +262,8 @@ terminar, con segundos por fase y un total. Se miden la carga y validacion,
 la generacion de la especificacion, `generate_solution`, `generate_pool` o
 `check_solutions`, segun el comando, y la salida. Solo aparecen las fases
 ejecutadas; si una falla, se incluye el tiempo transcurrido hasta el fallo.
-En `murdoku-generate`, `log_pool_summary` mide el resumen de pistas en stderr;
+En `murdoku-generate`, `build_problem` mide el bucle maestro-checker y
+`log_pool_summary` mide el resumen de pistas en stderr;
 `output` mide la salida del formato elegido, incluido JSON.
 El total incluye tambien el procesamiento de argumentos. Los tiempos usan
 un reloj monotono y no alteran stdout ni los archivos generados.
@@ -307,18 +385,25 @@ falsas para una persona, el pool contiene `v * f` disyunciones.
 
 ## Casos
 
-Cada problema se guarda por dificultad dentro de `inputs/`:
+Los ejemplos se agrupan por caso de uso. Los problemas de verificacion
+se guardan por dificultad:
 
 ```text
-inputs/
-├── so_easy/
-│   ├── example1/
-│   ├── example2/
-│   ├── example3/
-│   ├── example4/
-│   └── example5/
-└── so_difficult/
-    └── example6/
+use_cases/
+  generate-puzzle/
+    inputs/example.json
+    outputs/<run-id>/
+  generate-solution/
+    inputs/example.json
+    outputs/<run-id>/
+  verify-puzzle/
+    inputs/so_easy/
+      example1/
+      example2/
+      example3/
+      example4/
+      example5/
+    outputs/<run-id>/
 ```
 
 Cada carpeta de ejemplo contiene `elements.json`, `map.json`, `people.json`,
@@ -539,10 +624,10 @@ from murdoku_checker.mains.loaders import (
     load_rules,
 )
 
-map_ = load_map("inputs/so_easy/example1/map.json")
-elements = load_elements("inputs/so_easy/example1/elements.json")
-people = load_people("inputs/so_easy/example1/people.json")
-rules = load_rules("inputs/so_easy/example1/rules.json")
+map_ = load_map(r"use_cases\verify-puzzle\inputs\so_easy\example1\map.json")
+elements = load_elements(r"use_cases\verify-puzzle\inputs\so_easy\example1\elements.json")
+people = load_people(r"use_cases\verify-puzzle\inputs\so_easy\example1\people.json")
+rules = load_rules(r"use_cases\verify-puzzle\inputs\so_easy\example1\rules.json")
 input_ = MurdokuInput(
     map=map_,
     elements=elements,
@@ -560,14 +645,14 @@ El loader produce `FileNotFoundError` si el archivo no existe y
 El programa recibe la carpeta completa de un caso, carga `map.json`,
 `people.json` y `rules.json`, valida el conjunto y busca una solucion:
 
-```bash
-uv run murdoku-checker inputs/so_easy/example1
+```powershell
+uv run murdoku-checker use_cases\verify-puzzle\inputs\so_easy\example1
 ```
 
 Tambien puede ejecutarse como modulo:
 
-```bash
-uv run python -m murdoku_checker.mains.main_verify_puzzle inputs/so_easy/example1
+```powershell
+uv run python -m murdoku_checker.mains.main_verify_puzzle use_cases\verify-puzzle\inputs\so_easy\example1
 ```
 
 La salida comienza directamente con uno de estos resultados, sin mensajes de carga:

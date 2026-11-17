@@ -1,6 +1,6 @@
 from html import escape
 
-from murdoku_checker.domain import GeneratedSolution
+from murdoku_checker.domain import GeneratedSolution, Rules
 
 
 _STYLES = """
@@ -65,6 +65,10 @@ h2 { font-size: 16px; margin: 0; }
   font-weight: 700; font-size: 11px; flex-shrink: 0; }
 .person-badge { background: #263e48; color: white; }
 .person.victim, .person-badge.victim { background: #8b3449; }
+.clues { margin-top: 22px; }
+.clues ol { margin: 0; padding: 20px 24px 20px 48px; }
+.clues li { padding: 4px 0; line-height: 1.6; overflow-wrap: anywhere; }
+.clues p { padding: 0 24px; }
 footer { color: #667571; font-size: 12px; margin-top: 24px; line-height: 1.6; }
 @media (max-width: 800px) {
   main { padding: 24px 12px; }
@@ -91,8 +95,11 @@ def _room_style(index: int) -> str:
     )
 
 
-def format_solution_html(generated: GeneratedSolution) -> str:
-    """Render a self-contained, static HTML map with individual furniture."""
+def format_solution_html(
+    generated: GeneratedSolution, *, rules: Rules | None = None,
+    show_solution: bool = True,
+) -> str:
+    """Render a static board and clues, optionally omitting people's positions."""
     solution = generated.solution
     config = generated.specification.config
     rooms = solution.map.rooms
@@ -166,15 +173,17 @@ def format_solution_html(generated: GeneratedSolution) -> str:
         role = " (victim)" if is_victim else ""
         marker = f"P{index}" + ("*" if is_victim else "")
         kind = " victim" if is_victim else ""
-        label = escape(f"P{index}: {name}{role} / row {row}, column {column}")
-        board.append(
-            f'<div class="person{kind}" title="{label}" aria-label="{label}" '
-            f'style="grid-row: {row + 2}; grid-column: {column + 2};">{marker}</div>'
-        )
+        coordinates = ""
+        if show_solution:
+            label = escape(f"P{index}: {name}{role} / row {row}, column {column}")
+            board.append(
+                f'<div class="person{kind}" title="{label}" aria-label="{label}" '
+                f'style="grid-row: {row + 2}; grid-column: {column + 2};">{marker}</div>'
+            )
+            coordinates = f"<small>Row {row} / Column {column}</small>"
         people_legend.append(
             f'<li><span class="badge person-badge{kind}">{marker}</span>'
-            f"<div>{escape(name)}{role}<small>Row {row} / Column {column}"
-            "</small></div></li>"
+            f"<div>{escape(name)}{role}{coordinates}</div></li>"
         )
 
     room_legend = [
@@ -184,20 +193,42 @@ def format_solution_html(generated: GeneratedSolution) -> str:
         for index, room in enumerate(rooms)
     ]
     seed = str(config.seed) if config.seed is not None else "Random"
+    clues = ""
+    note = "Generated target solution / clues and uniqueness are not evaluated here."
+    if rules is not None:
+        items = "".join(f"<li>{escape(rule.description)}</li>" for rule in rules.rules)
+        clues = (
+            '<section class="panel clues" aria-labelledby="clues-heading">'
+            '<div class="panel-heading"><h2 id="clues-heading">Selected clues</h2>'
+            f"<span>{len(rules.rules)} clue(s)</span></div>"
+            + (f"<ol>{items}</ol>" if items else "<p>No clues required.</p>")
+            + "</section>"
+        )
+        note = "Generated target solution / selected puzzle clues shown above."
+    title = "Generated solution"
+    eyebrow = "SOLUTION CREATOR"
+    heading = "Your generated board."
+    intro = "A connected map, furnished rooms and a place for every person."
+    if not show_solution:
+        title = "Generated puzzle"
+        eyebrow = "PUZZLE"
+        heading = "Your generated puzzle."
+        intro = "Find a place for every person using the clues below."
+        note = "People's positions are omitted. Use the clues to complete the board."
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Murdoku - Generated solution</title>
+<title>Murdoku - {title}</title>
 <style>{_STYLES}</style>
 </head>
 <body>
 <main>
   <header>
-    <div class="eyebrow">MURDOKU / SOLUTION CREATOR</div>
-    <h1>Your generated board.</h1>
-    <p class="intro">A connected map, furnished rooms and a place for every person.</p>
+    <div class="eyebrow">MURDOKU / {eyebrow}</div>
+    <h1>{heading}</h1>
+    <p class="intro">{intro}</p>
     <div class="stats">
       <span class="stat"><strong>{config.rows} x {config.columns}</strong> grid</span>
       <span class="stat"><strong>{len(rooms)}</strong> rooms</span>
@@ -237,11 +268,12 @@ def format_solution_html(generated: GeneratedSolution) -> str:
       </section>
     </aside>
   </div>
+  {clues}
   <footer>
     Each furniture label identifies one instance, including pieces spanning two cells.
     Thick borders separate rooms. People may stand on walkable furniture.<br>
     The last person is the victim and shares a room with exactly one other person.<br>
-    Generated target solution / clues and uniqueness are not evaluated here.
+    {note}
     This file works offline.
   </footer>
 </main>

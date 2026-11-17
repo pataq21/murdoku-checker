@@ -7,6 +7,11 @@ from time import perf_counter
 class PhaseTimings:
     def __init__(self) -> None:
         self._durations: list[tuple[str, float]] = []
+        self.total_seconds: float | None = None
+
+    @property
+    def durations(self) -> dict[str, float]:
+        return dict(self._durations)
 
     @contextmanager
     def phase(self, name: str) -> Generator[None, None, None]:
@@ -30,4 +35,5 @@ def log_run_timings() -> Generator[PhaseTimings, None, None]:
     try:
         yield timings
     finally:
-        timings.report(perf_counter() - started)
+        timings.total_seconds = perf_counter() - started
+        timings.report(timings.total_seconds)

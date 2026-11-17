@@ -39,8 +39,17 @@ Se plantea un modelo de optimización para escoger qué reglas (variables binari
 ```py
 # Minimización Lexicográfica en CP-SAT
 error = abs(suma_dificultad - TARGET_DIFFICULTY)
-master_model.Minimize(error * 100 + num_reglas_totales)
+master_model.Minimize(error * (len(pool) + 1) + num_reglas_totales)
 ```
+
+El peso supera el numero maximo de reglas seleccionables, preservando las
+prioridades para cualquier tamano del pool. La implementacion exige un optimo
+demostrado del maestro en cada iteracion. `target_difficulty` es obligatorio
+en `generate-puzzle` y debe ser un entero no negativo.
+
+En el modelo actual se usa `victim` como excepcion de cobertura en lugar de un
+asesino separado. La cobertura cuenta todos los `protagonists`, no solo la
+persona que enuncia la pista.
 
 ## **4.2. El Subproblema (Demostración de Unicidad mediante CP-SAT)**
 
@@ -78,6 +87,15 @@ Cada app tiene una responsabilidad única. Reciben entidades claras de la capa d
 * **pool\_generator (Fase 2):** Recibe la solución \$S^\*\$ y el catálogo global de reglas. Ejecuta `evaluate(S*)` sobre cada una y devuelve el *pool* filtrado de reglas verdaderas.  
 * **solution\_checker (Validador):** Recibe un mapa y un subconjunto de reglas. Ejecuta `apply_to_model` de las reglas proporcionadas, resuelve el modelo y devuelve un booleano indicando si la solución es única. Si hay ambigüedad, devuelve la solución alternativa (\$S\_{alt}\$).  
 * **problem\_builder (Fase 3):** Orquesta el bucle Benders (Master-Subproblem). Ejecuta el Modelo Maestro (Goal Programming) para seleccionar el subconjunto de reglas y llama internamente al `solution_checker` para verificar la unicidad. Si el checker le devuelve una \$S\_{alt}\$, el builder añade el corte (cláusula de exclusión) y repite.
+
+La API `build_problem(input_, target, victim=..., target_difficulty=...)` recibe
+el pool en `input_.rules` y devuelve un `BuiltProblem` con `puzzle`,
+`total_difficulty`, `difficulty_error` e `iterations`. El checker mantiene
+`check_solutions` para verificar puzzles e incorpora
+`find_alternative(input_, target)`: devuelve otra `Solution`, o `None` solo
+tras demostrar que no existe ninguna. Valida que el objetivo sea una
+colocacion factible antes de excluirlo. Un pool insuficiente produce
+`ValueError`; un estado no concluyente del solver, `RuntimeError`.
 
 ## **5.3. Capa `mains` (Puntos de entrada)**
 

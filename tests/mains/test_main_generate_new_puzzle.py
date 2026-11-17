@@ -13,10 +13,13 @@ from murdoku_checker.domain import (
     GenerationConfig,
     InCoordinateRule,
     Map,
+    MurdokuInput,
+    Rule,
     Rules,
     Solution,
 )
 from murdoku_checker.mains.main_generate_new_puzzle import main
+from murdoku_checker.apps.solution_checker import check_solutions
 
 
 @pytest.fixture
@@ -24,13 +27,14 @@ def config_path(tmp_path: Path) -> Path:
     path = tmp_path / "generation.json"
     path.write_text(
         '{"rows": 2, "columns": 2, "element_coverage_percent": 0, '
-        '"element_type_count": 0, "room_count": 1, "seed": 17}',
+        '"element_type_count": 0, "room_count": 1, "seed": 17, '
+        '"target_difficulty": 4}',
         encoding="utf-8",
     )
     return path
 
 
-@pytest.mark.parametrize("rule_types", [["in_coordinate"], []])
+@pytest.mark.parametrize("rule_types", [["in_coordinate"]])
 def test_main_uses_rule_types_from_the_input(
     config_path: Path, capsys: pytest.CaptureFixture[str], rule_types: list[str]
 ) -> None:
@@ -106,25 +110,40 @@ def test_main_generates_solution_and_its_complete_pool(
     assert list(pool) == [
         rule for rules in expected_pool.values() for rule in rules
     ]
+    puzzle = MurdokuInput.model_validate_json(json.dumps(data["puzzle"]))
+    checked = check_solutions(puzzle)
+    assert checked.count == 1
+    assert checked.first_solution == solution.placements
+    assert data["optimization"]["difficulty_error"] == 0
+    assert data["optimization"]["rule_count"] == 2
 
 
 @pytest.mark.parametrize("output_format", ["json", "html"])
 def test_main_logs_rule_totals_per_person_and_type(
     config_path: Path, capsys: pytest.CaptureFixture[str], output_format: str
 ) -> None:
-    row = InCoordinateRule(person="person_1", axis=CoordinateAxis.ROW, value=0)
-    column = InCoordinateRule(person="person_1", axis=CoordinateAxis.COLUMN, value=0)
-    pool = {
-        "person_2": [],
-        "person_1": [
-            row,
-            column,
-            AnyOfRule(person="person_1", conditions=(row, column)),
-        ],
-    }
+    pool: dict[str, list[Rule]] = {}
+
+    def example_pool(
+        solution: Solution, **kwargs: object
+    ) -> dict[str, list[Rule]]:
+        person = next(name for name in solution.placements if name != kwargs["victim"])
+        row_value, column_value = solution.position_of(person)
+        row = InCoordinateRule(
+            person=person, axis=CoordinateAxis.ROW, value=row_value
+        )
+        column = InCoordinateRule(
+            person=person, axis=CoordinateAxis.COLUMN, value=column_value
+        )
+        pool.update({
+            "person_2": [],
+            person: [row, column, AnyOfRule(person=person, conditions=(row, column))],
+        })
+        return pool
+
     with patch(
         "murdoku_checker.mains.main_generate_new_puzzle.generate_pool",
-        return_value=pool,
+        side_effect=example_pool,
     ):
         assert (
             main(
@@ -222,6 +241,8 @@ def test_module_entry_point(config_path: Path) -> None:
             "-m",
             "murdoku_checker.mains.main_generate_new_puzzle",
             str(config_path),
+            "--runs-dir",
+            str(config_path.parent / "runs"),
         ],
         capture_output=True,
         text=True,
@@ -229,3 +250,37 @@ def test_module_entry_point(config_path: Path) -> None:
     )
     assert "Phase timings:\n" in result.stderr
     assert json.loads(result.stdout)["pool"]
+
+
+@pytest.mark.parametrize("target", ["missing", None, -1, True, 2.5])
+def test_target_is_required_and_must_be_a_nonnegative_integer(
+    config_path: Path, capsys: pytest.CaptureFixture[str], target: object
+) -> None:
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    if target == "missing":
+        del config["target_difficulty"]
+    else:
+        config["target_difficulty"] = target
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    with patch(
+        "murdoku_checker.mains.main_generate_new_puzzle.generate_specification"
+    ) as generate:
+        assert main([str(config_path)]) == 1
+    generate.assert_not_called()
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "target_difficulty" in captured.err
+
+
+def test_empty_pool_reports_failure_without_saving_a_puzzle(
+    config_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["rule_types"] = []
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    assert main([str(config_path)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Error building puzzle" in captured.err
+    directory, = (config_path.parent / "use_cases" / "generate-puzzle" / "outputs").iterdir()
+    assert not (directory / "result.json").exists()

@@ -1,6 +1,7 @@
 import argparse
 import sys
 from collections.abc import Sequence
+from html import escape
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -13,7 +14,12 @@ from murdoku_checker.mains.loaders import (
     load_people,
     load_rules,
 )
-from murdoku_checker.mains.phase_timings import PhaseTimings, log_run_timings
+from murdoku_checker.mains.phase_timings import PhaseTimings
+from murdoku_checker.mains.run_recording import (
+    RunRecord,
+    add_run_arguments,
+    run_recorded,
+)
 from murdoku_checker.mains.solution_display import format_solution
 
 
@@ -50,26 +56,32 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="stream CP-SAT model, presolve and search logs to stderr",
     )
+    add_run_arguments(parser)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    with log_run_timings() as timings:
-        return _run(argv, timings)
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    args = build_parser().parse_args(arguments)
+    return run_recorded(
+        "verify-puzzle",
+        arguments,
+        args.runs_dir,
+        lambda record, timings: _run(args, timings, record),
+    )
 
 
-def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
-    args = build_parser().parse_args(argv)
-
+def _run(args: argparse.Namespace, timings: PhaseTimings, record: RunRecord) -> int:
     try:
         with timings.phase("load_map"):
-            map_ = load_input_map(args.input_directory)
+            snapshot = record.snapshot_puzzle(args.input_directory)
+            map_ = load_input_map(snapshot)
         with timings.phase("load_elements"):
-            elements = load_input_elements(args.input_directory)
+            elements = load_input_elements(snapshot)
         with timings.phase("load_people"):
-            people = load_input_people(args.input_directory)
+            people = load_input_people(snapshot)
         with timings.phase("load_rules"):
-            rules = load_input_rules(args.input_directory)
+            rules = load_input_rules(snapshot)
         with timings.phase("validate_input"):
             input_ = MurdokuInput(map=map_, elements=elements, people=people, rules=rules)
     except (OSError, ValidationError) as error:
@@ -87,15 +99,35 @@ def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
         return 1
 
     with timings.phase("output"):
+        record.write_json(
+            "result.json",
+            {
+                "count": result.count,
+                "count_limit": 2,
+                "first_solution": (
+                    dict(result.first_solution)
+                    if result.first_solution is not None else None
+                ),
+                "input": input_.model_dump(mode="json"),
+            },
+        )
         if result.first_solution is None:
-            print("No solution.")
+            text = "No solution."
         else:
-            print(
+            status = (
                 "Unique solution."
                 if result.count == 1
                 else "Multiple solutions (at least 2). Showing the first."
             )
-            print(format_solution(input_, result.first_solution))
+            text = status + "\n" + format_solution(input_, result.first_solution)
+        (record.directory / "solution.txt").write_text(text + "\n", encoding="utf-8")
+        (record.directory / "solution.html").write_text(
+            '<!doctype html>\n<html><head><meta charset="utf-8">'
+            "<title>Murdoku verification</title></head>"
+            f"<body><pre>{escape(text)}</pre></body></html>",
+            encoding="utf-8",
+        )
+        print(text)
     return 0
 
 

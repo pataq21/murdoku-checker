@@ -85,7 +85,8 @@ def test_load_example_people() -> None:
     project_root = Path(__file__).parents[3]
 
     people = load_people(
-        project_root / "inputs" / "so_easy" / "example1" / "people.json"
+        project_root / "use_cases" / "verify-puzzle" / "inputs"
+        / "so_easy" / "example1" / "people.json"
     )
 
     assert [person.name for person in people.people] == [

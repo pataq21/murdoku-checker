@@ -90,7 +90,8 @@ def test_load_example_map() -> None:
     project_root = Path(__file__).parents[3]
 
     map_ = load_map(
-        project_root / "inputs" / "so_easy" / "example1" / "map.json"
+        project_root / "use_cases" / "verify-puzzle" / "inputs"
+        / "so_easy" / "example1" / "map.json"
     )
 
     assert len(map_.cells) == 36

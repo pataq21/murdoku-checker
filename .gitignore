@@ -37,3 +37,6 @@ dist/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Per-run snapshots and generated results
+/use_cases/*/outputs/

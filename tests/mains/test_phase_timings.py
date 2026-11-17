@@ -68,7 +68,8 @@ def test_new_puzzle_reports_executed_generation_phases(
     config = tmp_path / "generation.json"
     config.write_text(
         '{"rows": 2, "columns": 2, "element_coverage_percent": 0, '
-        '"element_type_count": 0, "room_count": 1, "seed": 17}',
+        '"element_type_count": 0, "room_count": 1, "seed": 17, '
+        '"target_difficulty": 4}',
         encoding="utf-8",
     )
     output = tmp_path / "solution.html"
@@ -78,12 +79,7 @@ def test_new_puzzle_reports_executed_generation_phases(
     captured = capsys.readouterr()
     summary = captured.err.split("Phase timings:\n")[1]
     phases = ["load_config", "generate_specification", "generate_solution"]
-    if output_format in ("text", "html"):
-        phases.append("output")
-    if output_format != "text":
-        phases.extend(["generate_pool", "log_pool_summary"])
-    if output_format == "json":
-        phases.append("output")
+    phases.extend(["generate_pool", "log_pool_summary", "build_problem", "output"])
     phases.append("total")
     assert [line.strip().split(":")[0] for line in summary.splitlines()] == phases
     assert all(

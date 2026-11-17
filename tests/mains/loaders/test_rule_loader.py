@@ -92,7 +92,8 @@ def test_load_example_rules() -> None:
     project_root = Path(__file__).parents[3]
 
     rules = load_rules(
-        project_root / "inputs" / "so_easy" / "example1" / "rules.json"
+        project_root / "use_cases" / "verify-puzzle" / "inputs"
+        / "so_easy" / "example1" / "rules.json"
     )
 
     assert len(rules.rules) == 5
@@ -107,7 +108,8 @@ def test_load_example_rules() -> None:
 def test_load_relative_position_rule_from_example2(tmp_path: Path) -> None:
     project_root = Path(__file__).parents[3]
     source = (
-        project_root / "inputs" / "so_easy" / "example2" / "rules.json"
+        project_root / "use_cases" / "verify-puzzle" / "inputs"
+        / "so_easy" / "example2" / "rules.json"
     )
     data = json.loads(source.read_text(encoding="utf-8"))
     rule = next(rule for rule in data["rules"] if rule["person"] == "Brigitte")

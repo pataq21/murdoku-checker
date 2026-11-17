@@ -10,10 +10,14 @@ from murdoku_checker.apps.solution_creator import (
     generate_solution,
     generate_specification,
 )
-from murdoku_checker.domain import GenerationConfig
-from murdoku_checker.mains.phase_timings import PhaseTimings, log_run_timings
+from murdoku_checker.mains.phase_timings import PhaseTimings
+from murdoku_checker.mains.run_recording import (
+    RunRecord,
+    add_run_arguments,
+    generation_payload,
+    run_recorded,
+)
 from murdoku_checker.mains.solution_display import format_generated_solution
-from murdoku_checker.mains.solution_display_html import format_solution_html
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,34 +41,37 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output",
         type=Path,
-        help="destination file (required for HTML, only supported with --format html)",
+        help="optional HTML copy (only supported with --format html)",
     )
     parser.add_argument(
         "--solver-logs",
         action="store_true",
         help="stream CP-SAT model, presolve and search logs to stderr",
     )
+    add_run_arguments(parser)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    with log_run_timings() as timings:
-        return _run(argv, timings)
-
-
-def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
-    if args.format == "html" and args.output is None:
-        parser.error("--format html requires --output")
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    args = parser.parse_args(arguments)
     if args.format != "html" and args.output is not None:
         parser.error("--output is only supported with --format html")
     if args.output is not None and args.output.resolve() == args.config.resolve():
         parser.error("--output must not overwrite the input configuration")
+    return run_recorded(
+        "generate-solution",
+        arguments,
+        args.runs_dir,
+        lambda record, timings: _run(args, timings, record),
+    )
 
+
+def _run(args: argparse.Namespace, timings: PhaseTimings, record: RunRecord) -> int:
     try:
         with timings.phase("load_config"):
-            config = GenerationConfig.model_validate_json(args.config.read_bytes())
+            config = record.load_generation_config(args.config)
     except (OSError, ValidationError) as error:
         print(
             f"Error loading generation config '{args.config}': {error}",
@@ -90,45 +97,26 @@ def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
 
     if args.format == "text":
         with timings.phase("output"):
+            record.save_generation(generated, generation_payload(generated))
             print(format_generated_solution(generated))
         return 0
     if args.format == "html":
         try:
             with timings.phase("output"):
-                content = format_solution_html(generated)
-                args.output.write_text(content, encoding="utf-8")
-                print(f"HTML solution written to '{args.output.resolve()}'")
+                content = record.save_generation(generated, generation_payload(generated))
+                output = args.output or record.directory / "solution.html"
+                if args.output is not None:
+                    output.write_text(content, encoding="utf-8")
+                print(f"HTML solution written to '{output.resolve()}'")
         except OSError as error:
             print(f"Error writing HTML solution '{args.output}': {error}", file=sys.stderr)
             return 1
         return 0
 
     with timings.phase("output"):
-        print(
-            json.dumps(
-                {
-                    "config": config.model_dump(mode="json"),
-                    "person_count": config.person_count,
-                    "element_cell_count": config.element_cell_count,
-                    "elements": [
-                        {
-                            "element": item.element.model_dump(mode="json"),
-                            "size": item.size,
-                            "count": item.count,
-                        }
-                        for item in specification.elements
-                    ],
-                    "map": generated.solution.map.model_dump(mode="json"),
-                    "placements": dict(generated.solution.placements),
-                    "victim": generated.victim,
-                    "furniture": [
-                        {"element": item.element, "cells": item.cells}
-                        for item in generated.furniture
-                    ],
-                },
-                indent=2,
-            )
-        )
+        result = generation_payload(generated)
+        record.save_generation(generated, result)
+        print(json.dumps(result, indent=2))
     return 0
 
 

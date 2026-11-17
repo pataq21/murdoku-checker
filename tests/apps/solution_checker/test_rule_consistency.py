@@ -141,7 +141,10 @@ def test_evaluate_agrees_with_apply_to_model(rule: BaseRule) -> None:
 
 @pytest.mark.parametrize(
     "case",
-    sorted((Path(__file__).parents[3] / "inputs").glob("*/*/rules.json")),
+    sorted(
+        (Path(__file__).parents[3] / "use_cases" / "verify-puzzle" / "inputs")
+        .glob("*/*/rules.json")
+    ),
     ids=lambda path: path.parent.name,
 )
 def test_example_solution_satisfies_every_rule(case: Path) -> None:

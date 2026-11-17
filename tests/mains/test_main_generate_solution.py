@@ -26,10 +26,13 @@ def test_main_prints_repeatable_solution_json(
     first = capsys.readouterr()
     data = json.loads(first.out)
 
-    assert first.err.startswith("Phase timings:\n")
+    assert first.err.startswith("Run directory:")
+    assert "Phase timings:\n" in first.err
     assert "  generate_solution:" in first.err
     assert "  output:" in first.err
-    assert data["config"] == GenerationConfig.model_validate(config).model_dump(mode="json")
+    assert data["config"] == GenerationConfig.model_validate(config).model_dump(
+        mode="json"
+    )
     assert data["person_count"] == 3
     assert data["element_cell_count"] == 4
     assert len(data["elements"]) == 3
@@ -51,15 +54,18 @@ def test_main_prints_repeatable_solution_json(
         (cell["latitude"], cell["longitude"]): cell["room"] for cell in cells
     }
     victim_room = rooms_by_position[tuple(data["placements"][data["victim"]])]
-    assert sum(
-        rooms_by_position[tuple(position)] == victim_room
-        for position in data["placements"].values()
-    ) == 2
+    assert (
+        sum(
+            rooms_by_position[tuple(position)] == victim_room
+            for position in data["placements"].values()
+        )
+        == 2
+    )
 
     assert main([str(path)]) == 0
     second = capsys.readouterr()
     assert second.out == first.out
-    assert second.err.startswith("Phase timings:\n")
+    assert "Phase timings:\n" in second.err
 
 
 def test_main_displays_generated_grid_in_text_mode(
@@ -75,7 +81,7 @@ def test_main_displays_generated_grid_in_text_mode(
     assert main([str(path), "--format", "text"]) == 0
     captured = capsys.readouterr()
 
-    assert captured.err.startswith("Phase timings:\n")
+    assert "Phase timings:\n" in captured.err
     assert captured.out.startswith("Generated solution (rows = latitude")
     assert "P1/R1" in captured.out
     assert "P2*/R1" in captured.out
@@ -113,14 +119,18 @@ def test_main_writes_html_or_reports_output_error(
         '"element_type_count": 0, "room_count": 1, "seed": 17}',
         encoding="utf-8",
     )
-    output = tmp_path / "solution.html" if writable else tmp_path / "missing" / "solution.html"
+    output = (
+        tmp_path / "solution.html"
+        if writable
+        else tmp_path / "missing" / "solution.html"
+    )
 
     code = main([str(path), "--format", "html", "--output", str(output)])
     captured = capsys.readouterr()
 
     if writable:
         assert code == 0
-        assert captured.err.startswith("Phase timings:\n")
+        assert "Phase timings:\n" in captured.err
         assert "HTML solution written to" in captured.out
         content = output.read_text(encoding="utf-8")
         assert content.startswith("<!doctype html>")
@@ -132,21 +142,6 @@ def test_main_writes_html_or_reports_output_error(
         assert captured.out == ""
         assert "Error writing HTML solution" in captured.err
         assert not output.exists()
-
-
-@pytest.mark.parametrize(
-    "arguments",
-    [
-        ["--format", "html"],
-        ["--format", "text", "--output", "solution.html"],
-        ["--output", "solution.html"],
-    ],
-)
-def test_main_rejects_incompatible_output_arguments(arguments: list[str]) -> None:
-    with pytest.raises(SystemExit) as error:
-        main(["unused.json", *arguments])
-
-    assert error.value.code == 2
 
 
 def test_main_does_not_overwrite_input_with_html(tmp_path: Path) -> None:

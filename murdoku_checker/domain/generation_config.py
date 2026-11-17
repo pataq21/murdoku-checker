@@ -34,6 +34,7 @@ class GenerationConfig(BaseModel):
     room_count: int = Field(ge=1)
     seed: int | None = None
     rule_types: tuple[RuleType, ...] = ALL_RULE_TYPES
+    target_difficulty: int | None = Field(default=None, ge=0)
 
     @property
     def cell_count(self) -> int:

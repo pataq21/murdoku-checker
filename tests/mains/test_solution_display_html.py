@@ -2,6 +2,8 @@ from html import escape
 from html.parser import HTMLParser
 
 from murdoku_checker.domain import (
+    AnyOfRule,
+    CoordinateAxis,
     Element,
     ElementSpecification,
     FurniturePlacement,
@@ -9,7 +11,9 @@ from murdoku_checker.domain import (
     GenerationConfig,
     GenerationSpecification,
     GridCell,
+    InCoordinateRule,
     Map,
+    Rules,
     Solution,
 )
 from murdoku_checker.mains.solution_display_html import format_solution_html
@@ -177,3 +181,54 @@ def test_html_is_standalone_and_handles_a_board_without_furniture() -> None:
         tag == "meta" and attrs.get("name") == "viewport"
         for tag, attrs in document.tags
     )
+    assert document.with_class("clues") == []
+
+
+def test_html_shows_selected_clues_in_order_and_escapes_descriptions() -> None:
+    name = '<script>alert("clue")</script> & Alice'
+    row = InCoordinateRule(person=name, axis=CoordinateAxis.ROW, value=0)
+    column = InCoordinateRule(person=name, axis=CoordinateAxis.COLUMN, value=0)
+    disjunction = AnyOfRule(person=name, conditions=(row, column))
+    rules = Rules(rules=(row, disjunction))
+    content = format_solution_html(sample_solution(person_name=name), rules=rules)
+    document = ParsedHTML(content)
+
+    assert len(document.with_class("clues")) == 1
+    assert (
+        f"<ol><li>{escape(row.description)}</li>"
+        f"<li>{escape(disjunction.description)}</li></ol>"
+    ) in content
+    assert "2 clue(s)" in content
+    assert "clues and uniqueness are not evaluated here" not in content
+    assert not any(tag == "script" for tag, _ in document.tags)
+
+
+def test_html_handles_a_puzzle_without_selected_clues() -> None:
+    content = format_solution_html(sample_solution(), rules=Rules())
+    assert len(ParsedHTML(content).with_class("clues")) == 1
+    assert "No clues required." in content
+
+
+def test_puzzle_html_omits_people_positions_but_keeps_map_names_and_clues() -> None:
+    name = '<script>alert("person")</script> & Alice'
+    generated = sample_solution(person_name=name)
+    rule = InCoordinateRule(person=name, axis=CoordinateAxis.ROW, value=0)
+    rules = Rules(rules=(rule,))
+    solution = ParsedHTML(format_solution_html(generated, rules=rules))
+    content = format_solution_html(generated, rules=rules, show_solution=False)
+    puzzle = ParsedHTML(content)
+
+    assert puzzle.with_class("person") == []
+    assert puzzle.with_class("person-badge") == solution.with_class("person-badge")
+    assert puzzle.with_class("cell") == solution.with_class("cell")
+    assert puzzle.with_class("furniture") == solution.with_class("furniture")
+    assert escape(name) in content
+    assert "Bob (victim)" in content
+    assert f"<li>{escape(rule.description)}</li>" in content
+    assert "<small>Row " not in content
+    assert not any(
+        "P1:" in (attrs.get("title") or "") or "P2:" in (attrs.get("title") or "")
+        for _, attrs in puzzle.tags
+    )
+    assert "<title>Murdoku - Generated puzzle</title>" in content
+    assert not any(tag in ("script", "link", "iframe") for tag, _ in puzzle.tags)

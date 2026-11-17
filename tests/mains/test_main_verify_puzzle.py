@@ -161,7 +161,7 @@ def test_main_prints_first_solution_for_ambiguous_puzzle(
     assert captured.out.count("First solution (") == 1
     assert "P1 = Alice" in captured.out
     assert "P2 = Bob" in captured.out
-    assert captured.err.startswith("Phase timings:\n")
+    assert "Phase timings:\n" in captured.err
     assert "  check_solutions:" in captured.err
     assert "  output:" in captured.err
 
@@ -198,7 +198,7 @@ def test_main_prints_unique_solution_with_optional_solver_logs(
         assert "Starting CP-SAT" in captured.err
         assert "CpSolverResponse" in captured.err
     else:
-        assert captured.err.startswith("Phase timings:\n")
+        assert "Phase timings:\n" in captured.err
 
 
 def test_main_delegates_to_solution_checker(tmp_path: Path) -> None:
@@ -244,7 +244,7 @@ def test_main_handles_empty_map(
         assert "First solution" not in captured.out
     else:
         assert captured.out.endswith("Unique solution.\nFirst solution: empty map.\n")
-    assert captured.err.startswith("Phase timings:\n")
+    assert "Phase timings:\n" in captured.err
 
 
 def test_main_reports_solver_failure(
