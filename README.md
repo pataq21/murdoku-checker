@@ -298,7 +298,9 @@ muestra directamente su nombre, sin identificadores
 `F1`, `F2`, etc. ni leyenda de objetos. Los muebles de dos celdas se dibujan
 como una sola pieza horizontal o vertical. Las
 personas se superponen a su celda. Las leyendas de personas y habitaciones
-aparecen debajo del tablero. En pantallas pequeñas, las pistas aparecen antes
+aparecen debajo del tablero. En escritorio, el contenido admite hasta 1440 px
+de ancho para dar mas espacio al tablero junto a las pistas.
+En pantallas pequeñas, las pistas aparecen antes
 del tablero y la cuadricula se puede desplazar sin comprimir las celdas.
 Los muebles cuyo nombre es exactamente `Chuso` o `Montse` muestran la imagen
 incluida en `murdoku_checker/assets/chuso.png` o

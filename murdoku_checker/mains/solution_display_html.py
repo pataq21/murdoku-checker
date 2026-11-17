@@ -15,7 +15,7 @@ _STYLES = """
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; }
-main { max-width: 1220px; margin: auto; padding: 48px 28px; }
+main { max-width: 1440px; margin: auto; padding: 48px 28px; }
 .eyebrow { font-size: 12px; letter-spacing: .18em; font-weight: 700; color: #52665f; }
 h1 { font-size: clamp(30px, 5vw, 46px); letter-spacing: -.045em; margin: 12px 0; }
 .intro { color: #5b6867; margin: 0; line-height: 1.6; }
