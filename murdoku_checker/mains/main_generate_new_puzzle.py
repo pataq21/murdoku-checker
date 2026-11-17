@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from murdoku_checker.apps.pool_generator import generate_pool
-from murdoku_checker.apps.problem_builder import build_problem
+from murdoku_checker.apps.problem_builder import BuildProgress, build_problem
 from murdoku_checker.apps.solution_creator import (
     generate_solution,
     generate_specification,
@@ -22,6 +22,17 @@ from murdoku_checker.mains.run_recording import (
     run_recorded,
 )
 from murdoku_checker.mains.solution_display import format_generated_solution
+
+
+def _log_build_progress(progress: BuildProgress) -> None:
+    status = "unique" if progress.is_unique else "ambiguous"
+    print(
+        f"Candidate {progress.iteration} checked: "
+        f"difficulty={progress.total_difficulty} target={progress.target_difficulty} "
+        f"error={progress.difficulty_error} clues={progress.rule_count} status={status}",
+        file=sys.stderr,
+        flush=True,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -144,10 +155,19 @@ def _run(args: argparse.Namespace, timings: PhaseTimings, record: RunRecord) -> 
                 victim=generated.victim,
                 target_difficulty=config.target_difficulty,
                 solver_logs=args.solver_logs,
+                on_progress=_log_build_progress,
             )
     except (ValueError, RuntimeError) as error:
         print(f"Error building puzzle: {error}", file=sys.stderr)
         return 1
+    print(
+        f"Puzzle summary: candidates_checked={built.iterations} "
+        f"cuts={built.iterations - 1} unique_puzzles=1 "
+        f"difficulty={built.total_difficulty} target={config.target_difficulty} "
+        f"error={built.difficulty_error} clues={len(built.puzzle.rules.rules)}",
+        file=sys.stderr,
+        flush=True,
+    )
     result["puzzle"] = built.puzzle.model_dump(mode="json")
     result["optimization"] = {
         "target_difficulty": config.target_difficulty,

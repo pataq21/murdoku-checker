@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -165,7 +166,6 @@ def test_main_logs_rule_totals_per_person_and_type(
         "    any_of: 1\n"
         "    in_coordinate: 2\n"
         "  person_2: total=0\n"
-        "Phase timings:\n"
     ) in captured.err
     assert "Generated rules per person:" not in captured.out
 
@@ -234,6 +234,47 @@ def test_solver_logs_do_not_corrupt_output(
     assert "Starting CP-SAT" in captured.err
 
 
+@pytest.mark.parametrize("target_difficulty", [0, 4, 100])
+def test_progress_reports_completed_candidates_and_real_target_error(
+    config_path: Path, capsys: pytest.CaptureFixture[str], target_difficulty: int
+) -> None:
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config.update(
+        target_difficulty=target_difficulty,
+        rule_types=["in_coordinate"],
+    )
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    assert main([str(config_path)]) == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    optimization = data["optimization"]
+    lines = [
+        line for line in captured.err.splitlines() if line.startswith("Candidate ")
+    ]
+    assert len(lines) == optimization["iterations"]
+    for index, line in enumerate(lines, start=1):
+        match = re.fullmatch(
+            r"Candidate (\d+) checked: difficulty=(\d+) target=(\d+) "
+            r"error=(\d+) clues=(\d+) status=(unique|ambiguous)",
+            line,
+        )
+        assert match is not None
+        iteration, difficulty, target, error, _ = map(int, match.groups()[:5])
+        assert iteration == index
+        assert target == target_difficulty
+        assert error == abs(difficulty - target)
+        assert match.group(6) == ("unique" if index == len(lines) else "ambiguous")
+    assert (
+        f"Puzzle summary: candidates_checked={optimization['iterations']} "
+        f"cuts={optimization['iterations'] - 1} unique_puzzles=1 "
+        f"difficulty={optimization['total_difficulty']} target={target_difficulty} "
+        f"error={optimization['difficulty_error']} clues={optimization['rule_count']}"
+    ) in captured.err
+    assert "Starting CP-SAT" not in captured.err
+    directory, = (config_path.parent / "use_cases" / "generate-puzzle" / "outputs").iterdir()
+    assert (directory / "run.log").read_text(encoding="utf-8") == captured.err
+
+
 def test_module_entry_point(config_path: Path) -> None:
     result = subprocess.run(
         [
@@ -282,5 +323,6 @@ def test_empty_pool_reports_failure_without_saving_a_puzzle(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "Error building puzzle" in captured.err
+    assert "Puzzle summary:" not in captured.err
     directory, = (config_path.parent / "use_cases" / "generate-puzzle" / "outputs").iterdir()
     assert not (directory / "result.json").exists()

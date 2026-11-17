@@ -95,6 +95,25 @@ resumen de tiempos. Cada regla `any_of` cuenta una sola vez; sus condiciones
 internas no se cuentan como reglas adicionales. Las personas sin pistas
 aparecen con `total=0`.
 
+Durante `build_problem`, cada candidato comprobado produce una linea compacta
+en stderr y `run.log`, sin necesidad de activar los logs de CP-SAT:
+
+```text
+Candidate 1 checked: difficulty=15 target=15 error=0 clues=5 status=ambiguous
+Candidate 2 checked: difficulty=17 target=15 error=2 clues=6 status=unique
+Puzzle summary: candidates_checked=2 cuts=1 unique_puzzles=1 difficulty=17 target=15 error=2 clues=6
+```
+
+`candidates_checked` cuenta subconjuntos de pistas comprobados en esta
+ejecucion, no puzzles generados en ejecuciones anteriores ni soluciones
+internas del solver. `error` es la distancia absoluta al target, no el gap de
+optimalidad de CP-SAT. Un error cero no implica unicidad: `ambiguous` significa
+que se encontro una alternativa. Solo se imprime el resumen final de exito
+tras demostrar unicidad; los errores conservan los candidatos ya comprobados
+y el diagnostico del fallo. Desde Python, `build_problem(on_progress=...)`
+permite recibir los mismos datos como objetos `BuildProgress`; sin callback
+la app no escribe estos mensajes.
+
 El mismo JSON de entrada acepta `rule_types`, una lista opcional de tipos de
 pistas que se generaran, por ejemplo `"rule_types": ["in", "in_coordinate", "any_of"]`.
 Los valores admitidos son `in`, `next_to`, `not_next_to`, `in_coordinate`,
@@ -198,7 +217,8 @@ uv run murdoku-creator use_cases\generate-solution\inputs\example.json --format 
 
 Abre `solution.html` dentro de la carpeta de la ejecucion indicada en stderr.
 Funciona sin conexion, JavaScript ni dependencias externas. F5 registra una
-ejecucion de `generate-puzzle` y mantiene activados los logs del solver.
+ejecucion de `generate-puzzle` y muestra el progreso compacto, sin los logs
+detallados del solver.
 Cada habitacion tiene un color y bordes marcados;
 los muebles ocupables y bloqueados tienen estilos distintos. Cada ejemplar
 tiene una etiqueta propia, y los muebles de dos celdas se dibujan como una
@@ -249,8 +269,9 @@ uv run murdoku-checker use_cases\verify-puzzle\inputs\so_easy\example1 --solver-
 ```
 
 Los logs se envian a stderr para mantener stdout limpio en JSON, texto y HTML.
-Estan desactivados por defecto en los comandos y activados en la configuracion
-de depuracion de VS Code (F5). Desde Python se pueden activar con
+Estan desactivados por defecto, tambien en la configuracion de depuracion
+de VS Code (F5); `--solver-logs` los habilita ademas del resumen compacto.
+Desde Python se pueden activar con
 `solver_logs=True` en `generate_solution`, `check_solutions` y los metodos
 de resolucion de sus modelos.
 

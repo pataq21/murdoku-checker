@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ortools.sat.python import cp_model
@@ -15,6 +16,16 @@ class BuiltProblem:
     iterations: int
 
 
+@dataclass(frozen=True, slots=True)
+class BuildProgress:
+    iteration: int
+    target_difficulty: int
+    total_difficulty: int
+    difficulty_error: int
+    rule_count: int
+    is_unique: bool
+
+
 def build_problem(
     input_: MurdokuInput,
     target: Solution,
@@ -22,11 +33,13 @@ def build_problem(
     victim: str,
     target_difficulty: int,
     solver_logs: bool = False,
+    on_progress: Callable[[BuildProgress], None] | None = None,
 ) -> BuiltProblem:
     """Select an optimal unique puzzle from the pool in input_.rules.
 
     Coverage uses all protagonists except the victim. An insufficient pool
     raises ValueError; inconclusive solver results raise RuntimeError.
+    When provided, on_progress receives one update per completed uniqueness check.
     """
     if type(target_difficulty) is not int or target_difficulty < 0:
         raise ValueError("target_difficulty must be a nonnegative integer")
@@ -78,11 +91,22 @@ def build_problem(
             rules=Rules(rules=chosen),
         )
         alternative = find_alternative(puzzle, target, solver_logs=solver_logs)
+        total_difficulty = sum(rule.difficulty for rule in chosen)
+        difficulty_error = solver.value(error)
+        if on_progress is not None:
+            on_progress(BuildProgress(
+                iteration=iterations,
+                target_difficulty=target_difficulty,
+                total_difficulty=total_difficulty,
+                difficulty_error=difficulty_error,
+                rule_count=len(chosen),
+                is_unique=alternative is None,
+            ))
         if alternative is None:
             return BuiltProblem(
                 puzzle=puzzle,
-                total_difficulty=sum(rule.difficulty for rule in chosen),
-                difficulty_error=solver.value(error),
+                total_difficulty=total_difficulty,
+                difficulty_error=difficulty_error,
                 iterations=iterations,
             )
         broken = [

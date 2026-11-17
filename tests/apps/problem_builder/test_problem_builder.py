@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from ortools.sat.python import cp_model
 
-from murdoku_checker.apps.problem_builder import build_problem
+from murdoku_checker.apps.problem_builder import BuildProgress, build_problem
 from murdoku_checker.apps.solution_checker import check_solutions, find_alternative
 from murdoku_checker.domain import (
     AnyOfRule, CoordinateAxis, Direction, Element, Elements, FeatureElement,
@@ -100,14 +100,29 @@ def test_adds_cuts_until_the_target_is_unique(
 ) -> None:
     input_, target = problem
     input_ = input_.model_copy(update={"rules": Rules(rules=input_.rules.rules[:2])})
+    progress: list[BuildProgress] = []
     with patch(
         "murdoku_checker.apps.problem_builder.problem_builder.find_alternative",
         wraps=find_alternative,
     ) as checker:
-        built = build_problem(input_, target, victim="Bob", target_difficulty=0)
+        built = build_problem(
+            input_, target, victim="Bob", target_difficulty=0,
+            on_progress=progress.append,
+        )
     assert built.iterations >= 2
     assert checker.call_count == built.iterations
     assert built.puzzle.rules == input_.rules
+    assert [update.iteration for update in progress] == list(range(1, built.iterations + 1))
+    assert [update.is_unique for update in progress] == (
+        [False] * (built.iterations - 1) + [True]
+    )
+    for update, call in zip(progress, checker.call_args_list):
+        rules = call.args[0].rules.rules
+        assert update.total_difficulty == sum(rule.difficulty for rule in rules)
+        assert update.target_difficulty == 0
+        assert update.difficulty_error == abs(update.total_difficulty)
+        assert update.rule_count == len(rules)
+    assert progress[-1].difficulty_error == built.difficulty_error
     for call in checker.call_args_list[:-1]:
         candidate = call.args[0]
         assert check_solutions(candidate).count == 2

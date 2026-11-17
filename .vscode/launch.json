@@ -9,8 +9,7 @@
             "args": [
                 "use_cases\\generate-puzzle\\inputs\\example.json",
                 "--format",
-                "html",
-                "--solver-logs"
+                "html"
             ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
