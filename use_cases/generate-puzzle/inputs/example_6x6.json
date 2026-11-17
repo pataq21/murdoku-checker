@@ -13,12 +13,24 @@
         "Emma",
         "Frank"
     ],
-    "element_names": [
-        {"name": "Table", "is_occupiable": false},
-        {"name": "Chair", "is_occupiable": true},
-        {"name": "Sofa", "is_occupiable": true},
-        {"name": "Wardrobe", "is_occupiable": false}
-    ],
+    "elements": {
+        "Chuso": {
+            "size": 1,
+            "is_occupiable": false
+        },
+        "Chair": {
+            "size": 1,
+            "is_occupiable": true
+        },
+        "Sofa": {
+            "size": 2,
+            "is_occupiable": true
+        },
+        "Wardrobe": {
+            "size": 1,
+            "is_occupiable": false
+        }
+    },
     "target_difficulty": 15,
     "rule_types": [
         "in",

@@ -1,5 +1,7 @@
+from base64 import b64decode
 from html import escape
 from html.parser import HTMLParser
+from importlib.resources import files
 
 import pytest
 
@@ -151,6 +153,49 @@ def test_html_labels_furniture_directly_without_a_furniture_legend(
     assert "F2" not in content
     assert "F3" not in content
     assert "<h2>Furniture</h2>" not in content
+
+
+@pytest.mark.parametrize("show_solution", [True, False])
+@pytest.mark.parametrize(
+    ("element_name", "filename"),
+    [
+        ("Chuso", "chuso.png"),
+        ("Montse", "montse.png"),
+        ("chuso", None),
+        ("montse", None),
+        ("Table", None),
+    ],
+)
+def test_html_embeds_element_image_only_for_exact_element_name(
+    show_solution: bool, element_name: str, filename: str | None,
+) -> None:
+    content = format_solution_html(
+        sample_solution(element_name=element_name), show_solution=show_solution,
+    )
+    document = ParsedHTML(content)
+    images = document.with_class("furniture-image")
+
+    if filename is None:
+        assert images == []
+        assert document.with_class("with-image") == []
+        return
+
+    assert len(images) == 1
+    assert images[0]["alt"] == element_name
+    source = images[0]["src"]
+    assert source is not None
+    prefix, data = source.split(",", 1)
+    assert prefix == "data:image/png;base64"
+    assert b64decode(data, validate=True) == (
+        files("murdoku_checker").joinpath("assets", filename).read_bytes()
+    )
+    furniture = document.with_class("with-image")
+    assert len(furniture) == 1
+    assert furniture[0]["data-element"] == element_name
+    assert furniture[0]["style"] == "grid-row: 2 / span 1; grid-column: 2 / span 2;"
+    assert "hidden" not in furniture[0]
+    assert "hidden" not in images[0]
+    assert f'<span class="furniture-label">{element_name}</span>' in content
 
 
 def test_html_escapes_names_in_text_attributes_and_legends() -> None:

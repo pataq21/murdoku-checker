@@ -1,8 +1,22 @@
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator,
+)
 
-from murdoku_checker.domain.element import Element
+
+class ElementConfig(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    size: Literal[1, 2]
+    is_occupiable: StrictBool = False
+
+    @field_validator("size", mode="before")
+    @classmethod
+    def validate_size_integer(cls, value: object) -> object:
+        if type(value) is not int:
+            raise ValueError("size must be an integer (1 or 2)")
+        return value
 
 
 RuleType = Literal[
@@ -38,7 +52,7 @@ class GenerationConfig(BaseModel):
     rule_types: tuple[RuleType, ...] = ALL_RULE_TYPES
     target_difficulty: int | None = Field(default=None, ge=0)
     person_names: tuple[str, ...] | None = None
-    element_names: tuple[str | Element, ...] | None = None
+    elements: dict[str, ElementConfig] | None = None
 
     @property
     def cell_count(self) -> int:
@@ -69,17 +83,30 @@ class GenerationConfig(BaseModel):
     def validate_names(self) -> Self:
         for field, names, count in (
             ("person_names", self.person_names, self.person_count),
-            ("element_names", self.element_names, self.element_type_count),
         ):
             if names is None:
                 continue
             if len(names) != count:
                 raise ValueError(f"{field} must contain exactly {count} names")
-            values = tuple(
-                name.name if isinstance(name, Element) else name for name in names
-            )
-            if any(not name.strip() for name in values):
+            if any(not name.strip() for name in names):
                 raise ValueError(f"{field} must contain non-empty names")
-            if len(set(values)) != len(values):
+            if len(set(names)) != len(names):
                 raise ValueError(f"{field} must contain unique names")
+        return self
+
+    @model_validator(mode="after")
+    def validate_elements(self) -> Self:
+        if self.elements is None:
+            return self
+        if len(self.elements) != self.element_type_count:
+            raise ValueError(
+                f"elements must contain exactly {self.element_type_count} entries"
+            )
+        if any(not name.strip() for name in self.elements):
+            raise ValueError("elements must contain non-empty names")
+        sizes = [element.size for element in self.elements.values()]
+        if sum(sizes) > self.element_cell_count:
+            raise ValueError("not enough element cells for the configured sizes")
+        if sizes and 1 not in sizes and self.element_cell_count % 2:
+            raise ValueError("size-2 elements cannot fill an odd element cell budget")
         return self

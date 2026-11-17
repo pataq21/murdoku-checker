@@ -6,37 +6,37 @@
     "room_count": 5,
     "seed": 3,
     "person_names": [
-        "Irene",
-        "Javier",
-        "Bea",
-        "Diego",
-        "Vicente",
-        "Mª José",
-        "Álvaro",
-        "Julia"
+        "Amaury",
+        "Javi",
+        "Carlos",
+        "Fer",
+        "Cristina",
+        "Carmen",
+        "Antonio",
+        "Laura"
     ],
-    "element_names": [
-        {
-            "name": "Mesa",
+    "elements": {
+        "Table": {
+            "size": 2,
             "is_occupiable": false
         },
-        {
-            "name": "Silla",
+        "Chair": {
+            "size": 1,
             "is_occupiable": true
         },
-        {
-            "name": "Sofá",
+        "Sofa": {
+            "size": 2,
             "is_occupiable": true
         },
-        {
-            "name": "Monstera",
+        "Montse": {
+            "size": 1,
             "is_occupiable": false
         },
-        {
-            "name": "Armario",
+        "Chuso": {
+            "size": 1,
             "is_occupiable": false
         }
-    ],
+    },
     "target_difficulty": 24,
     "rule_types": [
         "in",

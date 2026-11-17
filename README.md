@@ -11,6 +11,9 @@ variables, restricciones, objetivo y criterios de resolucion implementados:
   fijo, formulacion de las familias de pistas y comprobacion de unicidad.
 - [Generar un puzzle](docs/modelos/generate-puzzle.tex): fases de generacion,
   pool, maestro lexicografico, subproblema y cortes logicos de Benders.
+- [Presentacion Beamer](docs/modelos/presentacion-generate-puzzle.tex): diapositivas
+  en formato 16:9 sobre Murdoku, la arquitectura, el enfoque, la creacion del
+  tablero y la construccion del problema, con ejemplos visuales y un anexo matematico.
 
 Son documentos autonomos en espanol. Con una distribucion LaTeX instalada,
 se pueden compilar desde la raiz del repositorio:
@@ -19,7 +22,11 @@ se pueden compilar desde la raiz del repositorio:
 pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\generate-solution.tex
 pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\verify-puzzle.tex
 pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\generate-puzzle.tex
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\presentacion-generate-puzzle.tex
 ```
+
+En la presentacion, ejecuta el comando dos veces para actualizar el total de
+diapositivas y los enlaces internos.
 
 La documentacion distingue las restricciones reales de cada fase: el checker
 no reconstruye el mapa ni impone automaticamente la condicion de la victima
@@ -226,30 +233,36 @@ else:
     solution = generated.solution
 ```
 
-Los JSON de `generate-solution` y `generate-puzzle` aceptan nombres opcionales:
+Los JSON de `generate-solution` y `generate-puzzle` aceptan nombres de personas
+y un diccionario opcional `elements` con las propiedades de cada elemento:
 
 ```json
 {
   "person_names": ["Alice", "Bob", "Carol", "David"],
-  "element_names": [
-    {"name": "Table", "is_occupiable": false},
-    {"name": "Chair", "is_occupiable": true},
-    "Sofa"
-  ]
+  "elements": {
+    "Table": {"size": 2, "is_occupiable": false},
+    "Chair": {"size": 1, "is_occupiable": true},
+    "Sofa": {"size": 2, "is_occupiable": true}
+  }
 }
 ```
 
 Son campos adicionales de la configuracion: `person_names` debe tener exactamente
-`min(rows, columns)` nombres y `element_names`, exactamente `element_type_count`.
-Cada lista debe contener nombres unicos y no vacios (ni solo espacios).
-La ultima persona sigue siendo la victima. Si se omite una lista, se conservan
-los nombres por defecto `person_1`, etc. o `element_1`, etc., respectivamente.
+`min(rows, columns)` nombres unicos y no vacios (ni solo espacios).
+`elements` sustituye a `element_names` y `element_sizes`; sus claves son nombres
+no vacios y debe contener exactamente `element_type_count` entradas.
+La ultima persona sigue siendo la victima. Si se omite `person_names`, se conservan
+los nombres por defecto `person_1`, etc. Si se omite `elements`, se generan
+`element_1`, etc., con tamaños y ocupabilidad aleatorios como antes.
 Los nombres se usan en las pistas, el mapa y las salidas JSON, texto y HTML.
-En `element_names`, cada entrada puede ser un nombre o un objeto `Element`.
+Cada valor de `elements` requiere `size`: un entero `1` o `2`, el numero de
+celdas de cada ejemplar. Los tamaños configurados no se cambian al generar.
+Las cantidades de ejemplares y sus posiciones siguen siendo generadas.
+La cobertura debe permitir al menos un ejemplar de cada tipo y rellenarse
+exactamente con esos tamaños; solo elementos de tamaño 2 requieren un total par.
 `is_occupiable: true` permite colocar personas sobre ese elemento y `false`
 lo bloquea; solo se aceptan booleanos JSON. En un objeto, si se omite
-`is_occupiable`, su valor es `false`. Las entradas de texto conservan la
-ocupabilidad aleatoria anterior. Se pueden mezclar ambos formatos.
+`is_occupiable`, su valor es `false`.
 
 Para probarlo desde la consola con [la configuracion de ejemplo](use_cases/generate-solution/inputs/example.json):
 
@@ -287,6 +300,11 @@ como una sola pieza horizontal o vertical. Las
 personas se superponen a su celda. Las leyendas de personas y habitaciones
 aparecen debajo del tablero. En pantallas pequeñas, las pistas aparecen antes
 del tablero y la cuadricula se puede desplazar sin comprimir las celdas.
+Los muebles cuyo nombre es exactamente `Chuso` o `Montse` muestran la imagen
+incluida en `murdoku_checker/assets/chuso.png` o
+`murdoku_checker/assets/montse.png`, respectivamente, conservando su nombre y
+las personas superpuestas. Las imagenes se incrustan en el HTML y funcionan
+sin archivos externos, tambien cuando la solucion del puzzle esta oculta.
 
 `--output` es opcional: permite guardar una copia HTML adicional. En
 `murdoku-creator` es exclusivo del modo HTML. La carpeta de destino

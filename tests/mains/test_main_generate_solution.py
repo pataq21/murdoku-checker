@@ -9,13 +9,14 @@ from murdoku_checker.mains.main_generate_solution import main
 
 
 @pytest.mark.parametrize("walkable", [False, True])
+@pytest.mark.parametrize("size", [1, 2])
 def test_main_respects_configured_element_walkability(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], walkable: bool,
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], walkable: bool, size: int,
 ) -> None:
     data = {
         "rows": 2, "columns": 2, "element_coverage_percent": 100,
         "element_type_count": 1, "room_count": 1, "seed": 17,
-        "element_names": [{"name": "Carpet", "is_occupiable": walkable}],
+        "elements": {"Carpet": {"size": size, "is_occupiable": walkable}},
     }
     path = tmp_path / "generation.json"
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -29,6 +30,8 @@ def test_main_respects_configured_element_walkability(
         assert payload["elements"][0]["element"] == {
             "name": "Carpet", "is_occupiable": True,
         }
+        assert payload["elements"][0]["size"] == size
+        assert all(len(item["cells"]) == size for item in payload["furniture"])
         assert all(cell["features"] == ["Carpet"] for cell in payload["map"]["cells"])
     else:
         assert result == 1
@@ -50,7 +53,7 @@ def test_main_uses_optional_names_throughout_generated_output(
     if custom_people:
         data["person_names"] = ["Alice", "Bob"]
     if custom_elements:
-        data["element_names"] = ["Desk"]
+        data["elements"] = {"Desk": {"size": 1}}
     path = tmp_path / "generation.json"
     path.write_text(json.dumps(data), encoding="utf-8")
 

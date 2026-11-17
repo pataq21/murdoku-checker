@@ -109,7 +109,7 @@ class PlacementModel:
                 members.append(member)
                 row, column = self.positions[cell]
                 distance = abs(row - seed_row) + abs(column - seed_column)
-                placement_costs.append((10 * distance + random.randrange(10)) * member)
+                placement_costs.append((distance + random.randrange(10)) * member)
             self.room_members.append(members)
 
             single_axes = []
@@ -128,7 +128,9 @@ class PlacementModel:
                     self.model.add_max_equality(used, line)
                     # A row/column intersects a room in at most one interval.
                     self.model.add_automaton(
-                        line, 0, [0, 1, 2],
+                        line,
+                        0,
+                        [0, 1, 2],
                         [(0, 0, 0), (0, 1, 1), (1, 1, 1), (1, 0, 2), (2, 0, 2)],
                     )
                     coordinates.append(used)
@@ -209,7 +211,9 @@ class PlacementModel:
             for room, members in enumerate(self.room_members):
                 furniture_in_room = []
                 for cell, member in enumerate(members):
-                    present = self.model.new_bool_var(f"furniture_in_room_{room}_{cell}")
+                    present = self.model.new_bool_var(
+                        f"furniture_in_room_{room}_{cell}"
+                    )
                     self.model.add_min_equality(present, [member, occupied[cell]])
                     furniture_in_room.append(present)
                 furnished = self.model.new_bool_var(f"furnished_room_{room}")
@@ -315,7 +319,9 @@ class PlacementModel:
             map=map_,
             placements={
                 name: self.positions[solver.value(variable)]
-                for name, variable in zip(person_names, self.person_variables, strict=True)
+                for name, variable in zip(
+                    person_names, self.person_variables, strict=True
+                )
             },
         )
         return GeneratedSolution(

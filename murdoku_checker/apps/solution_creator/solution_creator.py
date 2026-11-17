@@ -20,16 +20,19 @@ def generate_specification(config: GenerationConfig) -> GenerationSpecification:
     if type_count == 0:
         return GenerationSpecification(config=config, elements=())
 
-    max_large_types = min(type_count, budget - type_count)
-    # An odd budget requires at least one size-one type to fill it exactly.
-    if budget % 2:
-        max_large_types = min(max_large_types, type_count - 1)
-    large_types = set(
-        random.sample(range(type_count), random.randint(0, max_large_types))
-    )
-    sizes: list[Literal[1, 2]] = [
-        2 if index in large_types else 1 for index in range(type_count)
-    ]
+    sizes: list[Literal[1, 2]]
+    if config.elements is not None:
+        sizes = [element.size for element in config.elements.values()]
+    else:
+        max_large_types = min(type_count, budget - type_count)
+        # An odd budget requires at least one size-one type to fill it exactly.
+        if budget % 2:
+            max_large_types = min(max_large_types, type_count - 1)
+        large_types = set(
+            random.sample(range(type_count), random.randint(0, max_large_types))
+        )
+        sizes = [2 if index in large_types else 1 for index in range(type_count)]
+
     counts = [1] * type_count
     remaining = budget - sum(sizes)
     while remaining:
@@ -40,18 +43,23 @@ def generate_specification(config: GenerationConfig) -> GenerationSpecification:
         counts[index] += 1
         remaining -= sizes[index]
 
+    configured_elements = (
+        [
+            Element(name=name, is_occupiable=properties.is_occupiable)
+            for name, properties in config.elements.items()
+        ]
+        if config.elements is not None
+        else None
+    )
     elements = []
     for index, size in enumerate(sizes):
-        configured = (
-            config.element_names[index]
-            if config.element_names is not None
-            else f"element_{index + 1}"
-        )
-        occupiable = random.choice((False, True))
         element = (
-            configured
-            if isinstance(configured, Element)
-            else Element(name=configured, is_occupiable=occupiable)
+            configured_elements[index]
+            if configured_elements is not None
+            else Element(
+                name=f"element_{index + 1}",
+                is_occupiable=random.choice((False, True)),
+            )
         )
         elements.append(
             ElementSpecification(element=element, size=size, count=counts[index])

@@ -1,6 +1,13 @@
+from base64 import b64encode
 from html import escape
+from importlib.resources import files
 
 from murdoku_checker.domain import GeneratedSolution, Rules
+
+_ELEMENT_IMAGES = {
+    "Chuso": "chuso.png",
+    "Montse": "montse.png",
+}
 
 _STYLES = """
 :root { color-scheme: light; font-family: "Segoe UI", system-ui, sans-serif;
@@ -48,6 +55,11 @@ h2 { font-size: 16px; margin: 0; }
   color: #28524a; font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
 .furniture.blocked { color: #695643; border: 2px dashed #9d8c74;
   background: repeating-linear-gradient(135deg, #eee7db 0 6px, #e7dfd1 6px 12px); }
+.furniture.with-image { position: relative; overflow: hidden; }
+.furniture-image { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; }
+.furniture.with-image .furniture-label { position: relative; padding: 2px 4px;
+  border-radius: 4px; background: #ffffffde; }
 .person { z-index: 3; align-self: end; justify-self: end; margin: 9px;
   display: grid; place-items: center; min-width: 36px; height: 36px;
   padding: 0 6px; border-radius: 50%; border: 2px solid white;
@@ -160,6 +172,11 @@ def format_solution_html(
             f'<span class="room-label">R{index + 1}</span></div>'
         )
 
+    image_sources = {}
+    for name, filename in _ELEMENT_IMAGES.items():
+        if any(item.element == name for item in generated.furniture):
+            image = files("murdoku_checker").joinpath("assets", filename).read_bytes()
+            image_sources[name] = "data:image/png;base64," + b64encode(image).decode("ascii")
     for item in generated.furniture:
         element = types[item.element].element
         row = min(position[0] for position in item.cells)
@@ -168,11 +185,19 @@ def format_solution_html(
         column_span = max(position[1] for position in item.cells) - column + 1
         label = escape(f"{item.element}")
         kind = "walkable" if element.is_occupiable else "blocked"
+        content = label
+        image_source = image_sources.get(item.element)
+        if image_source is not None:
+            kind += " with-image"
+            content = (
+                f'<img class="furniture-image" src="{image_source}" alt="{label}">'
+                f'<span class="furniture-label">{label}</span>'
+            )
         board.append(
             f'<div class="furniture {kind}" data-element="{escape(item.element)}" '
             f'title="{label}" aria-label="{label}" '
             f'style="grid-row: {row + 2} / span {row_span}; '
-            f'grid-column: {column + 2} / span {column_span};">{label}</div>'
+            f'grid-column: {column + 2} / span {column_span};">{content}</div>'
         )
 
     people_legend = []

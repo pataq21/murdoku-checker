@@ -24,11 +24,8 @@ def test_config_reads_json_and_derives_board_counts() -> None:
     [
         ("person_names", ["Alice"], "exactly 2"),
         ("person_names", ["Alice", "Bob", "Carol"], "exactly 2"),
-        ("element_names", [], "exactly 2"),
         ("person_names", ["Alice", "Alice"], "unique"),
-        ("element_names", ["Table", "Table"], "unique"),
         ("person_names", ["Alice", ""], "non-empty"),
-        ("element_names", ["Table", "  "], "non-empty"),
         ("person_names", ["Alice", 2], "string"),
     ],
 )
@@ -43,71 +40,99 @@ def test_config_rejects_invalid_name_lists(
         GenerationConfig.model_validate_json(json.dumps(data))
 
 
-def test_custom_element_names_preserve_generated_properties() -> None:
-    config = GenerationConfig(
-        rows=3, columns=3, element_coverage_percent=50,
-        element_type_count=2, room_count=2, seed=17,
-    )
-    default = generate_specification(config)
-    named_config = GenerationConfig.model_validate_json(
-        json.dumps({**config.model_dump(mode="json"), "element_names": ["Table", "Chair"]})
-    )
-    named = generate_specification(named_config)
-
-    assert [item.element.name for item in default.elements] == ["element_1", "element_2"]
-    assert [item.element.name for item in named.elements] == ["Table", "Chair"]
-    assert [
-        (item.size, item.count, item.element.is_occupiable) for item in named.elements
-    ] == [
-        (item.size, item.count, item.element.is_occupiable) for item in default.elements
-    ]
-
-
 @pytest.mark.parametrize("walkable", [False, True])
-def test_element_objects_control_walkability_without_changing_random_generation(
-    walkable: bool,
+@pytest.mark.parametrize("seed", [0, 3, 17])
+@pytest.mark.parametrize("sizes", [(1, 1), (2, 1), (1, 2), (2, 2)])
+def test_configured_elements_preserve_sizes_and_walkability(
+    walkable: bool, seed: int, sizes: tuple[int, int],
 ) -> None:
     data = {
         "rows": 3, "columns": 3, "element_coverage_percent": 50,
-        "element_type_count": 2, "room_count": 2, "seed": 17,
-        "element_names": ["Table", "Chair"],
+        "element_type_count": 2, "room_count": 2, "seed": seed,
+        "elements": {
+            "Table": {"size": sizes[0], "is_occupiable": walkable},
+            "Chair": {"size": sizes[1]},
+        },
     }
-    original = generate_specification(
-        GenerationConfig.model_validate_json(json.dumps(data))
-    )
-    data["element_names"] = [{"name": "Table", "is_occupiable": walkable}, "Chair"]
     config = GenerationConfig.model_validate_json(json.dumps(data))
     generated = generate_specification(config)
 
-    assert generated.elements[0].element.name == "Table"
-    assert generated.elements[0].element.is_occupiable is walkable
-    assert generated.elements[1] == original.elements[1]
-    assert [(item.size, item.count) for item in generated.elements] == [
-        (item.size, item.count) for item in original.elements
+    assert [
+        (item.element.name, item.size, item.element.is_occupiable)
+        for item in generated.elements
+    ] == [
+        ("Table", sizes[0], walkable),
+        ("Chair", sizes[1], False),
     ]
+    assert all(item.count >= 1 for item in generated.elements)
+    assert sum(item.size * item.count for item in generated.elements) == 4
+    assert generate_specification(config) == generated
     assert GenerationConfig.model_validate_json(config.model_dump_json()) == config
 
 
 @pytest.mark.parametrize(
     "elements",
     [
-        [{"name": "Table"}, "Table"],
-        [{"name": "Table", "is_occupiable": True}, {"name": "Table"}],
-        [{"name": "  "}, "Chair"],
-        [{"name": ""}, "Chair"],
-        [{"is_occupiable": True}, "Chair"],
-        [{"name": "Table", "is_occupiable": "true"}, "Chair"],
-        [{"name": "Table", "is_occupiable": 1}, "Chair"],
-        [{"name": "Table", "walkable": True}, "Chair"],
+        {},
+        {"Table": {"size": 1}},
+        {"Table": {"size": 1}, "  ": {"size": 1}},
+        {"Table": {"size": 1}, "": {"size": 1}},
+        {"Table": {"size": 1}, "Chair": {}},
+        {"Table": {"size": 0}, "Chair": {"size": 1}},
+        {"Table": {"size": 3}, "Chair": {"size": 1}},
+        {"Table": {"size": True}, "Chair": {"size": 1}},
+        {"Table": {"size": 1.0}, "Chair": {"size": 1}},
+        {"Table": {"size": "1"}, "Chair": {"size": 1}},
+        {"Table": {"size": 1, "is_occupiable": "true"}, "Chair": {"size": 1}},
+        {"Table": {"size": 1, "is_occupiable": 1}, "Chair": {"size": 1}},
+        {"Table": {"size": 1, "walkable": True}, "Chair": {"size": 1}},
+        [{"name": "Table", "size": 1}, {"name": "Chair", "size": 1}],
     ],
 )
-def test_config_rejects_invalid_element_objects(elements: list[object]) -> None:
+def test_config_rejects_invalid_elements(elements: object) -> None:
     data = {
         "rows": 3, "columns": 3, "element_coverage_percent": 50,
-        "element_type_count": 2, "room_count": 2, "element_names": elements,
+        "element_type_count": 2, "room_count": 2, "elements": elements,
     }
-    with pytest.raises(ValidationError, match="element_names"):
+    with pytest.raises(ValidationError, match="elements"):
         GenerationConfig.model_validate_json(json.dumps(data))
+
+
+@pytest.mark.parametrize(
+    ("percent", "size", "message"),
+    [(20, 2, "not enough element cells"), (50, 2, "odd element cell budget")],
+)
+def test_config_rejects_sizes_that_cannot_fill_budget(
+    percent: int, size: int, message: str,
+) -> None:
+    data = {
+        "rows": 2, "columns": 5, "element_coverage_percent": percent,
+        "element_type_count": 2, "room_count": 1,
+        "elements": {"Table": {"size": size}, "Chair": {"size": size}},
+    }
+    with pytest.raises(ValidationError, match=message):
+        GenerationConfig.model_validate_json(json.dumps(data))
+
+
+@pytest.mark.parametrize("sizes", [(1, 1), (1, 2), (2, 1), (2, 2)])
+def test_configured_sizes_fill_remaining_budget(sizes: tuple[int, int]) -> None:
+    for budget in range(sum(sizes), 11):
+        if sizes == (2, 2) and budget % 2:
+            continue
+        for seed in range(10):
+            config = GenerationConfig.model_validate_json(json.dumps({
+                "rows": 2, "columns": 5, "element_coverage_percent": budget * 10,
+                "element_type_count": 2, "room_count": 1, "seed": seed,
+                "elements": {
+                    "Table": {"size": sizes[0]},
+                    "Chair": {"size": sizes[1]},
+                },
+            }))
+            specification = generate_specification(config)
+
+            assert tuple(item.size for item in specification.elements) == sizes
+            assert all(item.count >= 1 for item in specification.elements)
+            assert sum(item.size * item.count for item in specification.elements) == budget
 
 
 @pytest.mark.parametrize(
