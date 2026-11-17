@@ -24,8 +24,7 @@ class InCoordinateRule(PositionalRule):
 
     @property
     def clause(self) -> str:
-        # Coordinates are 0-based in the data but 1-based for the player.
-        return f"{self.person} is in {self.axis.value} {self.value + 1}"
+        return f"{self.person} is in {self.axis.value} {self.value}"
 
     @property
     def difficulty(self) -> int:

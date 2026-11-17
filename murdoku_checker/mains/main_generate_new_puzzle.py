@@ -49,7 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--output",
         type=Path,
-        help="optional copy of the run's HTML solution at this path",
+        help="optional copy of the run's HTML puzzle with a solution toggle",
     )
     parser.add_argument(
         "--solver-logs",
@@ -187,11 +187,10 @@ def _run(args: argparse.Namespace, timings: PhaseTimings, record: RunRecord) -> 
                 for rule in built.puzzle.rules.rules:
                     print(f"- {rule.description}")
             else:
-                output = args.output or record.directory / "solution.html"
+                output = args.output or record.directory / "puzzle.html"
                 if args.output is not None:
                     output.write_text(content, encoding="utf-8")
-                print(f"HTML solution written to '{output.resolve()}'")
-                print(f"HTML puzzle written to '{record.directory / 'puzzle.html'}'")
+                print(f"HTML puzzle written to '{output.resolve()}'")
     except OSError as error:
         print(f"Error writing puzzle output: {error}", file=sys.stderr)
         return 1

@@ -1,0 +1,31 @@
+{
+    "rows": 6,
+    "columns": 6,
+    "element_coverage_percent": 30,
+    "element_type_count": 4,
+    "room_count": 5,
+    "seed": 1,
+    "person_names": [
+        "Alice",
+        "Bob",
+        "Carol",
+        "David",
+        "Emma",
+        "Frank"
+    ],
+    "element_names": [
+        {"name": "Table", "is_occupiable": false},
+        {"name": "Chair", "is_occupiable": true},
+        {"name": "Sofa", "is_occupiable": true},
+        {"name": "Wardrobe", "is_occupiable": false}
+    ],
+    "target_difficulty": 15,
+    "rule_types": [
+        "in",
+        "next_to",
+        "not_next_to",
+        "in_coordinate",
+        "room_relation",
+        "relative_position"
+    ]
+}

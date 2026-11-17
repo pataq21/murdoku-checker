@@ -98,6 +98,7 @@ class PlacementModel:
         random = Random(config.seed)
         thin_rooms = []
         placement_costs = []
+        self.room_members: list[list[cp_model.IntVar]] = []
         for room in range(config.room_count):
             members = []
             seed_row, seed_column = self.positions[self.room_seeds[room]]
@@ -109,6 +110,7 @@ class PlacementModel:
                 row, column = self.positions[cell]
                 distance = abs(row - seed_row) + abs(column - seed_column)
                 placement_costs.append((10 * distance + random.randrange(10)) * member)
+            self.room_members.append(members)
 
             single_axes = []
             extents = []
@@ -152,7 +154,7 @@ class PlacementModel:
             self.model.add_max_equality(thin, single_axes)
             thin_rooms.append(thin)
         self.model.add_at_most_one(thin_rooms)
-        self.model.minimize(sum(placement_costs))
+        self.room_placement_cost = cp_model.LinearExpr.sum(placement_costs)
 
     def _build_furniture(
         self,
@@ -197,6 +199,28 @@ class PlacementModel:
             variable = self.model.new_bool_var(f"blocked_{cell}")
             self.model.add(variable == sum(blocking[cell]))
             blocked.append(variable)
+        furnished_rooms = []
+        if options:
+            occupied = []
+            for cell in range(size):
+                variable = self.model.new_bool_var(f"furnished_cell_{cell}")
+                self.model.add(variable == sum(coverage[cell]))
+                occupied.append(variable)
+            for room, members in enumerate(self.room_members):
+                furniture_in_room = []
+                for cell, member in enumerate(members):
+                    present = self.model.new_bool_var(f"furniture_in_room_{room}_{cell}")
+                    self.model.add_min_equality(present, [member, occupied[cell]])
+                    furniture_in_room.append(present)
+                furnished = self.model.new_bool_var(f"furnished_room_{room}")
+                self.model.add_max_equality(furnished, furniture_in_room)
+                furnished_rooms.append(furnished)
+        config = self.specification.config
+        # One more furnished room outweighs any improvement in room placement.
+        furniture_weight = size * (10 * (config.rows + config.columns - 2) + 9) + 1
+        self.model.minimize(
+            self.room_placement_cost - furniture_weight * sum(furnished_rooms)
+        )
         return options, blocked
 
     def _build_people(self, blocked: list[cp_model.IntVar]) -> list[cp_model.IntVar]:
@@ -281,16 +305,22 @@ class PlacementModel:
                 for cell, (row, column) in enumerate(self.positions)
             )
         )
+        config = self.specification.config
+        person_names = (
+            config.person_names
+            if config.person_names is not None
+            else tuple(f"person_{index + 1}" for index in range(config.person_count))
+        )
         solution = Solution(
             map=map_,
             placements={
-                f"person_{person + 1}": self.positions[solver.value(variable)]
-                for person, variable in enumerate(self.person_variables)
+                name: self.positions[solver.value(variable)]
+                for name, variable in zip(person_names, self.person_variables, strict=True)
             },
         )
         return GeneratedSolution(
             specification=self.specification,
             solution=solution,
-            victim=f"person_{self.specification.config.person_count}",
+            victim=person_names[-1],
             furniture=tuple(furniture),
         )

@@ -85,9 +85,14 @@ def test_main_rejects_invalid_rule_types_before_generation(
     assert "rule_types" in captured.err
 
 
+@pytest.mark.parametrize("custom_names", [False, True])
 def test_main_generates_solution_and_its_complete_pool(
-    config_path: Path, capsys: pytest.CaptureFixture[str]
+    config_path: Path, capsys: pytest.CaptureFixture[str], custom_names: bool,
 ) -> None:
+    if custom_names:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        config["person_names"] = ["Alice", "Bob"]
+        config_path.write_text(json.dumps(config), encoding="utf-8")
     assert main([str(config_path)]) == 0
     captured = capsys.readouterr()
     assert "Phase timings:\n" in captured.err
@@ -104,6 +109,9 @@ def test_main_generates_solution_and_its_complete_pool(
     pool = Rules.model_validate({"rules": data["pool"]}).rules
     assert data["config"]["seed"] == 17
     assert solution_data["victim"] in solution.placements
+    if custom_names:
+        assert set(solution.placements) == {"Alice", "Bob"}
+        assert solution_data["victim"] == "Bob"
     assert pool
     assert all(rule.evaluate(solution) for rule in pool)
     assert all(rule.person != solution_data["victim"] for rule in pool)

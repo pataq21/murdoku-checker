@@ -64,8 +64,10 @@ def test_generation_records_context_and_artifacts_for_every_format(
     assert metadata["code"]["revision"]
     assert metadata["code"]["packages"]["ortools"]
     assert "generate_solution" in metadata["timings"]
-    html = (directory / "solution.html").read_text(encoding="utf-8")
+    filename = "puzzle.html" if use_case == "generate-puzzle" else "solution.html"
+    html = (directory / filename).read_text(encoding="utf-8")
     assert html.startswith("<!doctype html>")
+    assert {path.name for path in directory.glob("*.html")} == {filename}
     if output_format == "html":
         assert output_copy.read_text(encoding="utf-8") == html
     log = (directory / "run.log").read_text(encoding="utf-8")
@@ -87,17 +89,19 @@ def test_generation_records_context_and_artifacts_for_every_format(
         assert all(
             f"<li>{escape(rule.description)}</li>" in html for rule in rules.rules
         )
-        puzzle_html = (directory / "puzzle.html").read_text(encoding="utf-8")
-        assert "<title>Murdoku - Generated puzzle</title>" in puzzle_html
-        assert all(
-            f"<li>{escape(rule.description)}</li>" in puzzle_html for rule in rules.rules
-        )
-        assert '<div class="person' not in puzzle_html
-        assert "<small>Row " not in puzzle_html
+        assert "<title>Murdoku - Generated puzzle</title>" in html
+        assert 'id="solution-toggle"' in html
         assert '<div class="person' in html
-        assert "<small>Row " in html
+        assert "<small data-solution hidden>Row " in html
+        if output_format == "html":
+            assert captured.out.count("HTML puzzle written to") == 1
+            assert "HTML solution written" not in captured.out
     else:
-        assert "Selected clues" not in html
+        assert "Selected clues" in html
+        assert (
+            f"<li>{escape(result['victim'])} is the victim. "
+            "It was alone with someone</li>"
+        ) in html
         assert not (directory / "puzzle.html").exists()
 
     config_path.write_text("changed after the run", encoding="utf-8")

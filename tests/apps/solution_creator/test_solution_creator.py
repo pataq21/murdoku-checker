@@ -20,6 +20,97 @@ def test_config_reads_json_and_derives_board_counts() -> None:
 
 
 @pytest.mark.parametrize(
+    ("field", "names", "message"),
+    [
+        ("person_names", ["Alice"], "exactly 2"),
+        ("person_names", ["Alice", "Bob", "Carol"], "exactly 2"),
+        ("element_names", [], "exactly 2"),
+        ("person_names", ["Alice", "Alice"], "unique"),
+        ("element_names", ["Table", "Table"], "unique"),
+        ("person_names", ["Alice", ""], "non-empty"),
+        ("element_names", ["Table", "  "], "non-empty"),
+        ("person_names", ["Alice", 2], "string"),
+    ],
+)
+def test_config_rejects_invalid_name_lists(
+    field: str, names: list[str | int], message: str,
+) -> None:
+    data = {
+        "rows": 2, "columns": 3, "element_coverage_percent": 50,
+        "element_type_count": 2, "room_count": 1, field: names,
+    }
+    with pytest.raises(ValidationError, match=message):
+        GenerationConfig.model_validate_json(json.dumps(data))
+
+
+def test_custom_element_names_preserve_generated_properties() -> None:
+    config = GenerationConfig(
+        rows=3, columns=3, element_coverage_percent=50,
+        element_type_count=2, room_count=2, seed=17,
+    )
+    default = generate_specification(config)
+    named_config = GenerationConfig.model_validate_json(
+        json.dumps({**config.model_dump(mode="json"), "element_names": ["Table", "Chair"]})
+    )
+    named = generate_specification(named_config)
+
+    assert [item.element.name for item in default.elements] == ["element_1", "element_2"]
+    assert [item.element.name for item in named.elements] == ["Table", "Chair"]
+    assert [
+        (item.size, item.count, item.element.is_occupiable) for item in named.elements
+    ] == [
+        (item.size, item.count, item.element.is_occupiable) for item in default.elements
+    ]
+
+
+@pytest.mark.parametrize("walkable", [False, True])
+def test_element_objects_control_walkability_without_changing_random_generation(
+    walkable: bool,
+) -> None:
+    data = {
+        "rows": 3, "columns": 3, "element_coverage_percent": 50,
+        "element_type_count": 2, "room_count": 2, "seed": 17,
+        "element_names": ["Table", "Chair"],
+    }
+    original = generate_specification(
+        GenerationConfig.model_validate_json(json.dumps(data))
+    )
+    data["element_names"] = [{"name": "Table", "is_occupiable": walkable}, "Chair"]
+    config = GenerationConfig.model_validate_json(json.dumps(data))
+    generated = generate_specification(config)
+
+    assert generated.elements[0].element.name == "Table"
+    assert generated.elements[0].element.is_occupiable is walkable
+    assert generated.elements[1] == original.elements[1]
+    assert [(item.size, item.count) for item in generated.elements] == [
+        (item.size, item.count) for item in original.elements
+    ]
+    assert GenerationConfig.model_validate_json(config.model_dump_json()) == config
+
+
+@pytest.mark.parametrize(
+    "elements",
+    [
+        [{"name": "Table"}, "Table"],
+        [{"name": "Table", "is_occupiable": True}, {"name": "Table"}],
+        [{"name": "  "}, "Chair"],
+        [{"name": ""}, "Chair"],
+        [{"is_occupiable": True}, "Chair"],
+        [{"name": "Table", "is_occupiable": "true"}, "Chair"],
+        [{"name": "Table", "is_occupiable": 1}, "Chair"],
+        [{"name": "Table", "walkable": True}, "Chair"],
+    ],
+)
+def test_config_rejects_invalid_element_objects(elements: list[object]) -> None:
+    data = {
+        "rows": 3, "columns": 3, "element_coverage_percent": 50,
+        "element_type_count": 2, "room_count": 2, "element_names": elements,
+    }
+    with pytest.raises(ValidationError, match="element_names"):
+        GenerationConfig.model_validate_json(json.dumps(data))
+
+
+@pytest.mark.parametrize(
     ("percent", "expected"), [(5, 0), (15, 2), (25, 2), (35, 4)]
 )
 def test_coverage_rounds_to_nearest_with_even_ties(

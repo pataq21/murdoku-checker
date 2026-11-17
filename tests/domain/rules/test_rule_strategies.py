@@ -57,7 +57,25 @@ def solve(alice: tuple[int, int], bob: tuple[int, int]) -> Solution:
         ),
         (
             InCoordinateRule(person="Alice", axis=CoordinateAxis.COLUMN, value=0),
-            "Alice is in column 1.",
+            "Alice is in column 0.",
+        ),
+        (
+            InCoordinateRule(person="Alice", axis=CoordinateAxis.ROW, value=0),
+            "Alice is in row 0.",
+        ),
+        (
+            InCoordinateRule(person="Alice", axis=CoordinateAxis.COLUMN, value=2),
+            "Alice is in column 2.",
+        ),
+        (
+            AnyOfRule(
+                person="Alice",
+                conditions=(
+                    InCoordinateRule(person="Alice", axis=CoordinateAxis.ROW, value=0),
+                    InCoordinateRule(person="Alice", axis=CoordinateAxis.COLUMN, value=2),
+                ),
+            ),
+            "Either Alice is in row 0 or Alice is in column 2.",
         ),
         (
             RelativePositionRule(person="Alice", direction=Direction.NORTH, element=BOB),

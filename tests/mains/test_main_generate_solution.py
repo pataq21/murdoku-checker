@@ -8,6 +8,65 @@ from murdoku_checker.domain import GenerationConfig
 from murdoku_checker.mains.main_generate_solution import main
 
 
+@pytest.mark.parametrize("walkable", [False, True])
+def test_main_respects_configured_element_walkability(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], walkable: bool,
+) -> None:
+    data = {
+        "rows": 2, "columns": 2, "element_coverage_percent": 100,
+        "element_type_count": 1, "room_count": 1, "seed": 17,
+        "element_names": [{"name": "Carpet", "is_occupiable": walkable}],
+    }
+    path = tmp_path / "generation.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    result = main([str(path)])
+    captured = capsys.readouterr()
+
+    if walkable:
+        assert result == 0
+        payload = json.loads(captured.out)
+        assert payload["elements"][0]["element"] == {
+            "name": "Carpet", "is_occupiable": True,
+        }
+        assert all(cell["features"] == ["Carpet"] for cell in payload["map"]["cells"])
+    else:
+        assert result == 1
+        assert captured.out == ""
+        assert "No solution for the generated specification" in captured.err
+
+
+@pytest.mark.parametrize("custom_people", [True, False])
+@pytest.mark.parametrize("custom_elements", [True, False])
+def test_main_uses_optional_names_throughout_generated_output(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    custom_people: bool, custom_elements: bool,
+) -> None:
+    config = {
+        "rows": 2, "columns": 2, "element_coverage_percent": 25,
+        "element_type_count": 1, "room_count": 1, "seed": 17,
+    }
+    data: dict[str, object] = dict(config)
+    if custom_people:
+        data["person_names"] = ["Alice", "Bob"]
+    if custom_elements:
+        data["element_names"] = ["Desk"]
+    path = tmp_path / "generation.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    assert main([str(path)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    people = ["Alice", "Bob"] if custom_people else ["person_1", "person_2"]
+    element = "Desk" if custom_elements else "element_1"
+    assert list(payload["placements"]) == people
+    assert payload["victim"] == people[-1]
+    assert payload["elements"][0]["element"]["name"] == element
+    assert {item["element"] for item in payload["furniture"]} == {element}
+    assert {
+        feature for cell in payload["map"]["cells"] for feature in cell["features"]
+    } == {element}
+
+
 def test_main_prints_repeatable_solution_json(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

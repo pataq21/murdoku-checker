@@ -40,18 +40,23 @@ def generate_specification(config: GenerationConfig) -> GenerationSpecification:
         counts[index] += 1
         remaining -= sizes[index]
 
-    elements = tuple(
-        ElementSpecification(
-            element=Element(
-                name=f"element_{index + 1}",
-                is_occupiable=random.choice((False, True)),
-            ),
-            size=size,
-            count=counts[index],
+    elements = []
+    for index, size in enumerate(sizes):
+        configured = (
+            config.element_names[index]
+            if config.element_names is not None
+            else f"element_{index + 1}"
         )
-        for index, size in enumerate(sizes)
-    )
-    return GenerationSpecification(config=config, elements=elements)
+        occupiable = random.choice((False, True))
+        element = (
+            configured
+            if isinstance(configured, Element)
+            else Element(name=configured, is_occupiable=occupiable)
+        )
+        elements.append(
+            ElementSpecification(element=element, size=size, count=counts[index])
+        )
+    return GenerationSpecification(config=config, elements=tuple(elements))
 
 
 def generate_solution(

@@ -19,7 +19,8 @@ El caso de uso \texttt{generate-solution}, ejecutado mediante
 \texttt{murdoku-creator}, construye un mapa con habitaciones y muebles y
 una colocaci\'on completa de personas. El resultado es una soluci\'on
 objetivo $S^\star$, no un puzzle con pistas ni una prueba de unicidad.
-El modelo es de \emph{factibilidad}: no contiene funci\'on objetivo.
+El modelo optimiza primero el n\'umero de habitaciones amuebladas y,
+como criterio secundario, la proximidad de las celdas a sus semillas.
 
 La implementaci\'on se encuentra en:
 \begin{itemize}
@@ -58,8 +59,21 @@ Si $T=0$, la especificaci\'on de muebles es vac\'ia.
 Se elige aleatoriamente qu\'e tipos tienen tama\~no dos, manteniendo
 el presupuesto y dejando un tipo de tama\~no uno si $E$ es impar.
 Cada tipo empieza con un ejemplar y se a\~naden ejemplares compatibles
-con el presupuesto restante. La ocupabilidad tambi\'en se sortea.
-La semilla controla estas decisiones.
+con el presupuesto restante. Por defecto, la ocupabilidad tambi\'en
+se sortea. La semilla controla estas decisiones.
+
+La configuraci\'on admite \texttt{person\_names}, con exactamente
+$n$ nombres, y \texttt{element\_names}, con exactamente $T$ entradas.
+Cada lista debe contener nombres \'unicos y no vac\'ios, excluyendo
+los formados solo por espacios. Si se omiten, se conservan
+\texttt{person\_1}, etc., y \texttt{element\_1}, etc.
+La \'ultima persona sigue siendo la v\'ictima.
+Cada entrada de \texttt{element\_names} puede ser un nombre o un objeto
+con \texttt{name} e \texttt{is\_occupiable}. Un objeto fija $o_t$
+con un booleano JSON; si omite \texttt{is\_occupiable}, vale falso.
+Una entrada de texto conserva el sorteo de ocupabilidad. Ambos
+formatos pueden mezclarse. Los nombres y ocupabilidades se fijan
+antes de resolver, no se cambian para recuperar factibilidad.
 
 \section{Conjuntos e \'indices}
 
@@ -192,13 +206,14 @@ No se cambia autom\'aticamente el mapa solicitado para evitarlas.
 \subsection{Preferencia espacial aleatoria}
 
 Con $\delta(c,s_k)$ la distancia Manhattan y
-$\epsilon_{kc}\in\{0,\ldots,9\}$ un coste aleatorio fijo, se minimiza
+$\epsilon_{kc}\in\{0,\ldots,9\}$ un coste aleatorio fijo, se define
 \[
- \sum_{k,c}(10\delta(c,s_k)+\epsilon_{kc})m_{kc}.
+ C=\sum_{k,c}(10\delta(c,s_k)+\epsilon_{kc})m_{kc}.
 \]
 La semilla de configuraci\'on controla tambi\'en estos costes.
 Se favorecen habitaciones cercanas a sus semillas sin imponer
-\'areas iguales. La b\'usqueda se limita a diez segundos y puede
+\'areas iguales. $C$ es el criterio secundario del objetivo descrito
+m\'as abajo. La b\'usqueda se limita a diez segundos y puede
 devolver una soluci\'on factible sin demostrar optimalidad.
 Un resultado inconcluso sin soluci\'on se comunica como error.
 
@@ -225,6 +240,39 @@ La restricci\'on de no solapamiento hace que la suma sea booleana.
 Las celdas sin muebles no est\'an bloqueadas. El presupuesto $E$ se
 cumple por los tama\~nos y cantidades fijados, sin necesidad de una
 restricci\'on adicional sobre el porcentaje.
+
+\subsection{Preferencia por habitaciones amuebladas}
+
+Se cuenta cualquier mueble, ocupable o bloqueado; las personas no
+cuentan como objetos. Se introducen indicadores exactos
+\begin{align}
+ z_c&=\sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\c\in A}}f_{iA},
+       &z_c&\in\B,\\
+ e_{kc}&=\min(m_{kc},z_c),
+       &e_{kc}&\in\B,\\
+ g_k&=\max_{c\in V}e_{kc},
+       &g_k&\in\B.
+\end{align}
+As\'i, $g_k=1$ si y solo si la habitaci\'on $k$ contiene al menos
+una celda de mueble. Un mueble de dos celdas cuenta para una sola
+habitaci\'on, porque no puede atravesar paredes.
+El objetivo completo es
+\[
+ \boxed{\min\ C-M\sum_{k\in\mathcal K}g_k,\qquad
+ M=N\bigl(10(H+W-2)+9\bigr)+1.}
+\]
+Cada celda pertenece exactamente a una habitaci\'on, por lo que
+$0\leq C\leq M-1$. Una habitaci\'on amueblada adicional mejora el
+objetivo m\'as que cualquier variaci\'on posible de $C$.
+Esto equivale a maximizar lexicogr\'aficamente el n\'umero de
+habitaciones amuebladas y despu\'es minimizar $C$.
+
+Es una preferencia, no se exige $g_k=1$ para todo $k$. Se permiten
+habitaciones sin muebles cuando faltan ejemplares o las piezas no
+caben bajo las dem\'as restricciones. No se modifican cantidades,
+tama\~nos ni ocupabilidad. Si no hay muebles, todos los indicadores
+son cero y solo se minimiza $C$; la implementaci\'on omite entonces
+los auxiliares de amueblamiento.
 
 \subsection{Colocaci\'on de las personas}
 
@@ -255,15 +303,18 @@ configuraci\'on haya superado las validaciones iniciales.
 
 \section{Resoluci\'on y extracci\'on}
 
-CP-SAT usa un trabajador, \texttt{PORTFOLIO\_SEARCH},
+CP-SAT usa ocho trabajadores, \texttt{PORTFOLIO\_SEARCH},
 \texttt{randomize\_search=True} y una semilla de solver derivada de la
 semilla de configuraci\'on. La aleatorizaci\'on de la b\'usqueda no
 equivale a muestrear uniformemente todas las soluciones factibles.
 
 \begin{description}
   \item[\texttt{FEASIBLE} o \texttt{OPTIMAL}:] Se extrae una colocaci\'on
-        factible, el mapa y cada ejemplar de mueble. Al no haber
-        objetivo, \texttt{OPTIMAL} no indica una mejor dificultad.
+        factible, el mapa y cada ejemplar de mueble.
+        \texttt{OPTIMAL} demuestra el \'optimo del objetivo espacial,
+        no una mejor dificultad del puzzle.
+        \texttt{FEASIBLE} no garantiza el m\'inimo de habitaciones
+        sin muebles.
   \item[\texttt{INFEASIBLE}:] La app devuelve \texttt{None}; el comando
         informa del fallo. No cambia cantidades, tama\~nos ni ocupabilidad
         ni vuelve a sortear la especificaci\'on.
@@ -272,11 +323,18 @@ equivale a muestrear uniformemente todas las soluciones factibles.
 \end{description}
 
 El resultado contiene \texttt{GeneratedSolution}: especificaci\'on,
-mapa, posiciones, v\'ictima y muebles individuales. Los nombres se
-serializan como \texttt{person\_1}, etc., y
-\texttt{room\_1}, etc. Las coordenadas internas empiezan en cero.
+mapa, posiciones, v\'ictima y muebles individuales. Se conservan
+los nombres configurados de personas y elementos; las habitaciones
+se serializan como \texttt{room\_1}, etc.
+Las coordenadas internas y las descripciones de pistas empiezan en cero.
 El registro conserva la configuraci\'on efectiva y la semilla para
-reproducir la ejecuci\'on en un entorno compatible.
+repetir las entradas de la ejecuci\'on. La b\'usqueda paralela y el
+l\'imite de tiempo no garantizan la misma colocaci\'on en cada intento.
+
+Se guarda \texttt{solution.html}, con posiciones visibles y una
+pista informativa que identifica a la v\'ictima y recuerda que
+estaba a solas con otra persona. Esa frase no introduce otra
+restricci\'on ni participa en una selecci\'on de pistas.
 
 \section{L\'imites de la garant\'ia}
 

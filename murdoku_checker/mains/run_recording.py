@@ -127,11 +127,12 @@ class RunRecord:
         *, rules: Rules | None = None,
     ) -> str:
         self.write_json("result.json", result)
-        content = format_solution_html(generated, rules=rules)
-        (self.directory / "solution.html").write_text(content, encoding="utf-8")
-        if rules is not None:
-            puzzle = format_solution_html(generated, rules=rules, show_solution=False)
-            (self.directory / "puzzle.html").write_text(puzzle, encoding="utf-8")
+        is_puzzle = rules is not None
+        content = format_solution_html(
+            generated, rules=rules, show_solution=not is_puzzle,
+        )
+        name = "puzzle.html" if is_puzzle else "solution.html"
+        (self.directory / name).write_text(content, encoding="utf-8")
         return content
 
     def finish(self, exit_code: int, timings: PhaseTimings) -> None:

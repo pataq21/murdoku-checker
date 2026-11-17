@@ -1,6 +1,8 @@
 from html import escape
 from html.parser import HTMLParser
 
+import pytest
+
 from murdoku_checker.domain import (
     AnyOfRule,
     CoordinateAxis,
@@ -42,6 +44,7 @@ def sample_solution(
     room_name: str = "Kitchen",
     element_name: str = "Table",
     person_name: str = "Alice",
+    victim_name: str = "Bob",
 ) -> GeneratedSolution:
     furniture = (
         FurniturePlacement(element_name, ((0, 0), (0, 1))),
@@ -88,9 +91,9 @@ def sample_solution(
                     for column in range(3)
                 )
             ),
-            placements={person_name: (0, 0), "Bob": (1, 1)},
+            placements={person_name: (0, 0), victim_name: (1, 1)},
         ),
-        victim="Bob",
+        victim=victim_name,
         furniture=furniture,
     )
 
@@ -129,6 +132,27 @@ def test_html_places_furniture_spans_people_and_room_walls() -> None:
     ]) == 1
 
 
+@pytest.mark.parametrize("show_solution", [True, False])
+def test_html_labels_furniture_directly_without_a_furniture_legend(
+    show_solution: bool,
+) -> None:
+    content = format_solution_html(sample_solution(), show_solution=show_solution)
+    furniture = ParsedHTML(content).with_class("furniture")
+
+    for item, label in zip(
+        furniture,
+        ("Table", "Wardrobe", "Chair"),
+        strict=True,
+    ):
+        assert item["title"] == label
+        assert item["aria-label"] == label
+        assert f';">{label}</div>' in content
+    assert "F1" not in content
+    assert "F2" not in content
+    assert "F3" not in content
+    assert "<h2>Furniture</h2>" not in content
+
+
 def test_html_escapes_names_in_text_attributes_and_legends() -> None:
     name = '</style><script>alert("x")</script><b onmouseover="bad"> &'
     content = format_solution_html(sample_solution(name, name, name))
@@ -143,6 +167,7 @@ def test_html_escapes_names_in_text_attributes_and_legends() -> None:
         for attribute in attributes
     )
     assert document.with_class("furniture")[0]["data-element"] == name
+    assert f';">{escape(name)}</div>' in content
 
 
 def test_html_is_standalone_and_handles_a_board_without_furniture() -> None:
@@ -171,7 +196,8 @@ def test_html_is_standalone_and_handles_a_board_without_furniture() -> None:
     document = ParsedHTML(content)
 
     assert content.startswith("<!doctype html>")
-    assert "No furniture on this board." in content
+    assert "<h2>Furniture</h2>" not in content
+    assert "No furniture on this board." not in content
     assert len(document.with_class("cell")) == 4
     assert len(document.with_class("person")) == 2
     assert document.with_class("furniture") == []
@@ -181,7 +207,7 @@ def test_html_is_standalone_and_handles_a_board_without_furniture() -> None:
         tag == "meta" and attrs.get("name") == "viewport"
         for tag, attrs in document.tags
     )
-    assert document.with_class("clues") == []
+    assert len(document.with_class("clues")) == 1
 
 
 def test_html_shows_selected_clues_in_order_and_escapes_descriptions() -> None:
@@ -195,21 +221,64 @@ def test_html_shows_selected_clues_in_order_and_escapes_descriptions() -> None:
 
     assert len(document.with_class("clues")) == 1
     assert (
-        f"<ol><li>{escape(row.description)}</li>"
+        "<ol><li>Bob is the victim. It was alone with someone</li>"
+        f"<li>{escape(row.description)}</li>"
         f"<li>{escape(disjunction.description)}</li></ol>"
     ) in content
-    assert "2 clue(s)" in content
+    assert "3 clue(s)" in content
+    assert f"<li>{escape(name)} is in row 0.</li>" in content
+    assert (
+        f"<li>Either {escape(name)} is in row 0 or "
+        f"{escape(name)} is in column 0.</li>"
+    ) in content
     assert "clues and uniqueness are not evaluated here" not in content
     assert not any(tag == "script" for tag, _ in document.tags)
 
 
-def test_html_handles_a_puzzle_without_selected_clues() -> None:
-    content = format_solution_html(sample_solution(), rules=Rules())
+@pytest.mark.parametrize("show_solution", [True, False])
+@pytest.mark.parametrize("rules", [None, Rules()])
+def test_html_always_includes_the_escaped_victim_clue(
+    show_solution: bool, rules: Rules | None,
+) -> None:
+    victim = '<script>alert("victim")</script> & Bob'
+    content = format_solution_html(
+        sample_solution(victim_name=victim),
+        rules=rules,
+        show_solution=show_solution,
+    )
     assert len(ParsedHTML(content).with_class("clues")) == 1
-    assert "No clues required." in content
+    assert (
+        f"<ol><li>{escape(victim)} is the victim. It was alone with someone</li></ol>"
+    ) in content
+    assert "1 clue(s)" in content
+    assert "No clues required." not in content
+    assert victim not in content
 
 
-def test_puzzle_html_omits_people_positions_but_keeps_map_names_and_clues() -> None:
+@pytest.mark.parametrize("show_solution", [True, False])
+@pytest.mark.parametrize("rules", [None, Rules()])
+def test_html_places_clues_before_board_and_legends_below_it(
+    show_solution: bool, rules: Rules | None,
+) -> None:
+    content = format_solution_html(
+        sample_solution(), rules=rules, show_solution=show_solution,
+    )
+    document = ParsedHTML(content)
+    board_column = content.index('<div class="board-column">')
+    board = content.index('aria-labelledby="map-heading"')
+    legends = content.index('<aside class="legends"')
+
+    assert board_column < board < legends
+    assert content.index("<h2>Rooms</h2>") > legends
+    assert content.index("<h2>People</h2>") > legends
+    assert "Kitchen" in content[legends:]
+    assert "Alice" in content[legends:]
+    assert "Bob (victim)" in content[legends:]
+    assert len(document.with_class("has-clues")) == 1
+    assert content.index('aria-labelledby="clues-heading"') < board_column
+
+
+def test_puzzle_html_hides_solution_but_keeps_map_names_and_clues() -> None:
     name = '<script>alert("person")</script> & Alice'
     generated = sample_solution(person_name=name)
     rule = InCoordinateRule(person=name, axis=CoordinateAxis.ROW, value=0)
@@ -218,17 +287,32 @@ def test_puzzle_html_omits_people_positions_but_keeps_map_names_and_clues() -> N
     content = format_solution_html(generated, rules=rules, show_solution=False)
     puzzle = ParsedHTML(content)
 
-    assert puzzle.with_class("person") == []
+    assert len(puzzle.with_class("person")) == 2
+    assert all("hidden" in person for person in puzzle.with_class("person"))
+    assert all("hidden" not in person for person in solution.with_class("person"))
     assert puzzle.with_class("person-badge") == solution.with_class("person-badge")
     assert puzzle.with_class("cell") == solution.with_class("cell")
     assert puzzle.with_class("furniture") == solution.with_class("furniture")
     assert escape(name) in content
     assert "Bob (victim)" in content
     assert f"<li>{escape(rule.description)}</li>" in content
-    assert "<small>Row " not in content
+    coordinates = [
+        attrs for tag, attrs in puzzle.tags if tag == "small" and "data-solution" in attrs
+    ]
+    assert len(coordinates) == 2
+    assert all("hidden" in attrs for attrs in coordinates)
+    assert puzzle.with_class("solution-toggle") == [
+        {
+            "type": "button", "class": "solution-toggle", "id": "solution-toggle",
+            "aria-pressed": "false", "aria-controls": "generated-map people-legend",
+        }
+    ]
+    assert solution.with_class("solution-toggle") == []
+    assert sum(tag == "script" for tag, _ in puzzle.tags) == 1
     assert not any(
-        "P1:" in (attrs.get("title") or "") or "P2:" in (attrs.get("title") or "")
-        for _, attrs in puzzle.tags
+        attribute.startswith("on") for _, attrs in puzzle.tags for attribute in attrs
     )
     assert "<title>Murdoku - Generated puzzle</title>" in content
-    assert not any(tag in ("script", "link", "iframe") for tag, _ in puzzle.tags)
+    assert not any(tag in ("link", "iframe") for tag, _ in puzzle.tags)
+    assert not any("src" in attrs for _, attrs in puzzle.tags)
+    assert name not in content

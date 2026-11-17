@@ -2,6 +2,8 @@ from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from murdoku_checker.domain.element import Element
+
 
 RuleType = Literal[
     "in",
@@ -35,6 +37,8 @@ class GenerationConfig(BaseModel):
     seed: int | None = None
     rule_types: tuple[RuleType, ...] = ALL_RULE_TYPES
     target_difficulty: int | None = Field(default=None, ge=0)
+    person_names: tuple[str, ...] | None = None
+    element_names: tuple[str | Element, ...] | None = None
 
     @property
     def cell_count(self) -> int:
@@ -59,4 +63,23 @@ class GenerationConfig(BaseModel):
             )
         if self.element_cell_count > 0 and self.element_type_count == 0:
             raise ValueError("positive element coverage requires an element type")
+        return self
+
+    @model_validator(mode="after")
+    def validate_names(self) -> Self:
+        for field, names, count in (
+            ("person_names", self.person_names, self.person_count),
+            ("element_names", self.element_names, self.element_type_count),
+        ):
+            if names is None:
+                continue
+            if len(names) != count:
+                raise ValueError(f"{field} must contain exactly {count} names")
+            values = tuple(
+                name.name if isinstance(name, Element) else name for name in names
+            )
+            if any(not name.strip() for name in values):
+                raise ValueError(f"{field} must contain non-empty names")
+            if len(set(values)) != len(values):
+                raise ValueError(f"{field} must contain unique names")
         return self

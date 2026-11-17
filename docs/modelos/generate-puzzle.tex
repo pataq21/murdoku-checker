@@ -58,6 +58,13 @@ con presupuesto
    =\operatorname{round}\left(HW\,\frac{\alpha}{100}\right).
 \]
 Estos valores se fijan antes de CP-SAT.
+Se admiten nombres personalizados mediante \texttt{person\_names}
+y \texttt{element\_names}, con listas completas de nombres \'unicos
+y no vac\'ios. Las entradas de elementos pueden ser nombres o
+objetos con \texttt{name} e \texttt{is\_occupiable}. Estos objetos
+fijan $o_t$; si omiten la ocupabilidad, vale falso. Las entradas de
+texto mantienen la ocupabilidad aleatoria. Sin listas se conservan
+los nombres generados. La v\'ictima sigue siendo la \'ultima persona.
 
 El modelo espacial contiene:
 \begin{description}
@@ -85,9 +92,10 @@ cuatro celdas.
 Las formas pueden ser no rectangulares: cada intersecci\'on con
 una fila o columna es continua y el \'area ocupa al menos el 75\%
 de su envolvente, con proporci\'on entre ejes como m\'aximo 1.5.
-Se minimiza la distancia a las semillas con costes aleatorios
-fijos, aceptando soluciones factibles tras un m\'aximo de diez
-segundos sin exigir optimalidad espacial.
+Se prioriza amueblar el mayor n\'umero de habitaciones y, como
+desempate, se minimiza la distancia a las semillas con costes
+aleatorios fijos. Se aceptan soluciones factibles tras un m\'aximo
+de diez segundos sin exigir optimalidad espacial.
 
 Adem\'as, para cada habitaci\'on se obtiene un indicador exacto
 \[
@@ -129,8 +137,18 @@ Finalmente $K_p=r_{Q_p}$, $h_p\Longleftrightarrow K_p=K_v$ y
 $\sum_{p\neq v}h_p=1$: la habitaci\'on de la v\'ictima contiene
 exactamente dos personas.
 
-Es un problema de factibilidad sin objetivo, resuelto con b\'usqueda
-aleatorizada. Su formulaci\'on detallada est\'a en
+Si $g_k$ indica que alguna celda de la habitaci\'on $k$ contiene
+un mueble y $C$ es el coste espacial secundario, el objetivo es
+\[
+ \min\ C-M\sum_k g_k,\qquad
+ M=N\bigl(10(H+W-2)+9\bigr)+1.
+\]
+El peso domina toda variaci\'on de $C$. No se obliga a amueblar
+todas las habitaciones: pueden faltar piezas o no caber en alguna.
+Se cuentan tanto muebles ocupables como bloqueados, no personas.
+El l\'imite de tiempo permite devolver una colocaci\'on factible
+sin demostrar que se han minimizado las habitaciones sin objetos.
+Su formulaci\'on detallada est\'a en
 \texttt{generate-solution.tex}. Una vez extra\'ido $S^\star$, el mapa
 y todos los muebles quedan fijos para las fases siguientes.
 
@@ -148,6 +166,8 @@ Se enumeran las familias habilitadas por \texttt{rule\_types}, usando
 habitaciones, elementos, coordenadas y diferencias de coordenadas
 presentes en el mapa. No se generan pistas cuyo sujeto sea la
 v\'ictima, pero esta s\'i puede ser una persona objetivo.
+Las descripciones de filas y columnas muestran el \'indice desde
+cero, igual que el tablero, tambi\'en dentro de \texttt{any\_of}.
 
 Las reglas simples se conservan si $\varphi_r(S^\star)=1$.
 Si est\'a habilitada \texttt{any\_of}, se forman pares no ordenados
@@ -341,9 +361,23 @@ un maestro ni cuenta sus soluciones internas. Al terminar con \'exito,
 si hubo $k$ candidatos comprobados, se a\~nadieron $k-1$ cortes.
 
 El comando conserva el pool, el puzzle y las m\'etricas en
-\texttt{result.json}. Tambi\'en genera \texttt{solution.html}, con
-posiciones y pistas, y \texttt{puzzle.html}, con el mismo mapa y
-pistas pero sin revelar las posiciones de las personas. La
-presentaci\'on no construye modelos matem\'aticos adicionales.
+\texttt{result.json}. Genera un solo \texttt{puzzle.html}, con
+posiciones y coordenadas personales inicialmente ocultas. Un bot\'on
+\emph{Show solution} las muestra, y \emph{Hide solution} vuelve a
+ocultarlas. Funciona sin conexi\'on con JavaScript integrado; la
+soluci\'on est\'a incluida en el archivo y puede leerse en su fuente.
+No se genera adem\'as \texttt{solution.html}. La opci\'on
+\texttt{--output} copia ese mismo HTML interactivo.
+
+Las pistas aparecen a la izquierda del tablero y las leyendas de
+personas y habitaciones debajo. Los muebles muestran directamente
+su nombre, sin identificadores \texttt{F1}, etc., ni leyenda propia.
+En pantallas peque\~nas las pistas preceden al tablero.
+La primera pista HTML dice
+\emph{Nombre is the victim. It was alone with someone}, usando el
+nombre real de la v\'ictima. Es informativa: recuerda la condici\'on
+del generador, no se a\~nade al pool, a la selecci\'on ni al checker.
+El contador HTML la incluye, pero no cambia $D(x)$ ni $C(x)$.
+La presentaci\'on no construye modelos matem\'aticos adicionales.
 
 \end{document}

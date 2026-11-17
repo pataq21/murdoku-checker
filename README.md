@@ -105,14 +105,20 @@ o un solver termina sin resultado concluyente, el comando informa del error:
 no devuelve un puzzle ambiguo ni cambia la configuracion.
 
 Los tres formatos ejecutan todas las fases. Texto y HTML muestran tambien las
-pistas seleccionadas; HTML incluye una lista numerada bajo el tablero, tanto
+pistas seleccionadas; HTML incluye una lista numerada a la izquierda del tablero, tanto
 en el registro como en la copia opcional de `--output`. No muestra el pool
-completo. Cada ejecucion de `generate-puzzle` guarda `solution.html` con las
-personas colocadas y las pistas, y `puzzle.html` con el mismo mapa y pistas,
-pero sin posiciones de personas ni coordenadas en su leyenda. Se conservan
-los nombres y la identificacion de la victima. `--output` sigue copiando solo
-`solution.html`; `puzzle.html` queda en la carpeta de la ejecucion.
-El visor de `generate-solution` sigue sin pistas y no crea `puzzle.html`.
+completo. Cada ejecucion de `generate-puzzle` guarda un unico `puzzle.html`.
+Las posiciones de personas y sus coordenadas empiezan ocultas; el boton
+`Show solution` las muestra y `Hide solution` las vuelve a ocultar.
+Se conservan los nombres y la identificacion de la victima.
+La solucion esta incluida en el archivo y puede consultarse en su codigo fuente:
+es una ayuda visual, no una proteccion contra su lectura.
+`--output` copia ese mismo HTML interactivo. No se crea otro `solution.html`.
+El HTML incluye siempre como primera pista «Nombre is the victim. It was alone
+with someone», usando el nombre de la victima, incluso sin pistas seleccionadas.
+Esta pista informativa se cuenta en el HTML, pero no cambia las reglas ni las
+metricas del puzzle.
+El visor de `generate-solution` solo incluye esta pista y no crea `puzzle.html`.
 El puzzle completo y sus metricas quedan siempre en `result.json`, junto a
 los HTML, dentro del registro.
 
@@ -176,10 +182,10 @@ Cada ejecucion conserva:
   `generate-puzzle`, todos los formatos incluyen tambien el pool, el puzzle
   seleccionado y las metricas de optimizacion.
   En verificacion incluye el primer resultado y el recuento limitado a dos.
-- `solution.html`: vista autocontenida del resultado. En verificacion es
+- `solution.html`: vista autocontenida de `generate-solution`. En verificacion es
   un informe con la cuadricula textual; tambien se guarda `solution.txt`.
-- `puzzle.html`: solo en `generate-puzzle`, tablero y pistas seleccionadas sin
-  revelar la colocacion de las personas (tampoco en atributos HTML).
+- `puzzle.html`: unico HTML en `generate-puzzle`, con tablero, pistas y un boton
+  para mostrar u ocultar la solucion integrada. Funciona sin conexion.
 - `run.json`: argumentos, directorio de trabajo, rutas de origen, fechas,
   configuracion efectiva, version de Python y dependencias, revision Git y
   cambios locales, tiempos por fase, codigo de salida y estado.
@@ -220,6 +226,31 @@ else:
     solution = generated.solution
 ```
 
+Los JSON de `generate-solution` y `generate-puzzle` aceptan nombres opcionales:
+
+```json
+{
+  "person_names": ["Alice", "Bob", "Carol", "David"],
+  "element_names": [
+    {"name": "Table", "is_occupiable": false},
+    {"name": "Chair", "is_occupiable": true},
+    "Sofa"
+  ]
+}
+```
+
+Son campos adicionales de la configuracion: `person_names` debe tener exactamente
+`min(rows, columns)` nombres y `element_names`, exactamente `element_type_count`.
+Cada lista debe contener nombres unicos y no vacios (ni solo espacios).
+La ultima persona sigue siendo la victima. Si se omite una lista, se conservan
+los nombres por defecto `person_1`, etc. o `element_1`, etc., respectivamente.
+Los nombres se usan en las pistas, el mapa y las salidas JSON, texto y HTML.
+En `element_names`, cada entrada puede ser un nombre o un objeto `Element`.
+`is_occupiable: true` permite colocar personas sobre ese elemento y `false`
+lo bloquea; solo se aceptan booleanos JSON. En un objeto, si se omite
+`is_occupiable`, su valor es `false`. Las entradas de texto conservan la
+ocupabilidad aleatoria anterior. Se pueden mezclar ambos formatos.
+
 Para probarlo desde la consola con [la configuracion de ejemplo](use_cases/generate-solution/inputs/example.json):
 
 ```powershell
@@ -243,15 +274,19 @@ uv run murdoku-creator use_cases\generate-solution\inputs\example.json --format 
 ```
 
 Abre `solution.html` dentro de la carpeta de la ejecucion indicada en stderr.
-Funciona sin conexion, JavaScript ni dependencias externas. F5 registra una
+La vista de `generate-solution` funciona sin conexion, JavaScript ni dependencias
+externas. El `puzzle.html` de `generate-puzzle` usa JavaScript integrado para
+mostrar u ocultar la solucion, sin dependencias externas. F5 registra una
 ejecucion de `generate-puzzle` y muestra el progreso compacto, sin los logs
 detallados del solver.
 Cada habitacion tiene un color y bordes marcados;
 los muebles ocupables y bloqueados tienen estilos distintos. Cada ejemplar
-tiene una etiqueta propia, y los muebles de dos celdas se dibujan como una
-sola pieza horizontal o vertical. Las personas se superponen a su celda y
-la leyenda incluye nombres, tamaños y coordenadas. En pantallas pequeñas,
-la cuadricula se puede desplazar sin comprimir las celdas.
+muestra directamente su nombre, sin identificadores
+`F1`, `F2`, etc. ni leyenda de objetos. Los muebles de dos celdas se dibujan
+como una sola pieza horizontal o vertical. Las
+personas se superponen a su celda. Las leyendas de personas y habitaciones
+aparecen debajo del tablero. En pantallas pequeñas, las pistas aparecen antes
+del tablero y la cuadricula se puede desplazar sin comprimir las celdas.
 
 `--output` es opcional: permite guardar una copia HTML adicional. En
 `murdoku-creator` es exclusivo del modo HTML. La carpeta de destino
@@ -265,6 +300,15 @@ su colocacion mediante CP-SAT. Tambien se puede ejecutar como modulo:
 ```powershell
 uv run python -m murdoku_checker.mains.main_generate_solution use_cases\generate-solution\inputs\example.json
 ```
+
+La colocacion prioriza amueblar el mayor numero posible de habitaciones, por
+encima del criterio de proximidad a las semillas de las habitaciones. Es una
+preferencia, no una restriccion obligatoria: si faltan muebles o alguna habitacion
+no admite las piezas disponibles, se permiten habitaciones sin objetos.
+Las personas no cuentan como muebles. Se mantienen los tamaños, cantidades,
+ocupabilidad y restricciones geometricas de las piezas y habitaciones.
+Si se alcanza el limite de tiempo, se conserva la mejor colocacion valida
+encontrada, aunque no se haya demostrado que minimice las habitaciones vacias.
 
 La salida es JSON con la configuracion, `person_count`, `element_cell_count`,
 los tipos generados (`element`, `size`, `count`), `map`, `placements`, `victim`
@@ -580,6 +624,8 @@ una unica `condition`, discriminada por `type`:
   `same` y `different`.
 - `in_coordinate` exige estar en una fila (`row`) o columna (`column`)
   concreta. `value` es el indice de la coordenada, empezando en cero.
+  Las pistas muestran ese mismo indice, tambien dentro de disyunciones `any_of`,
+  para coincidir con las etiquetas del tablero.
 - `any_of` expresa una disyuncion de al menos dos condiciones y puede contener
   otras condiciones `any_of`.
 

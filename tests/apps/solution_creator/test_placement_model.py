@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import Literal
 from unittest.mock import patch
 
 import pytest
@@ -36,13 +37,16 @@ def make_specification(
     )
 
 
-def make_layout_model(layout: tuple[str, ...]) -> PlacementModel:
+def make_layout_model(
+    layout: tuple[str, ...],
+    elements: tuple[ElementSpecification, ...] = (),
+) -> PlacementModel:
     names = sorted(set("".join(layout)))
     cells = "".join(layout)
     seeds = tuple(cells.index(name) for name in names)
     with patch.object(PlacementModel, "_choose_room_seeds", return_value=seeds):
         model = PlacementModel(
-            make_specification(len(layout), len(layout[0]), len(names))
+            make_specification(len(layout), len(layout[0]), len(names), elements)
         )
     for variable, name in zip(model.room_variables, cells, strict=True):
         model.model.add(variable == names.index(name))
@@ -145,6 +149,46 @@ def test_empty_boards_have_connected_nonempty_rooms_and_valid_people(
 
     assert generated is not None
     assert_valid_solution(generated)
+
+
+@pytest.mark.parametrize("count", [0, 1, 3, 4, 5])
+@pytest.mark.parametrize("size", [1, 2])
+def test_furniture_fills_as_many_rooms_as_possible(
+    count: int, size: Literal[1, 2],
+) -> None:
+    elements = (
+        (ElementSpecification(Element(name="table", is_occupiable=True), size, count),)
+        if count else ()
+    )
+    model = make_layout_model(("AABB", "AABB", "CCDD", "CCDD"), elements)
+
+    generated = model.solve()
+
+    assert generated is not None
+    assert_valid_solution(generated)
+    furnished_rooms = {
+        cell.room for cell in generated.solution.map.cells if cell.features
+    }
+    assert len(furnished_rooms) == min(count, 4)
+
+
+def test_furniture_preference_allows_a_room_that_cannot_fit_any_piece() -> None:
+    model = make_layout_model(
+        ("AAABB", "AAABB", "CCXBB", "CCDDD", "CCDDD"),
+        (ElementSpecification(Element(name="table", is_occupiable=True), 2, 5),),
+    )
+
+    generated = model.solve()
+
+    assert generated is not None
+    assert_valid_solution(generated)
+    furnished_rooms = {
+        cell.room for cell in generated.solution.map.cells if cell.features
+    }
+    assert len(furnished_rooms) == 4
+    singleton = generated.solution.map.get_cell(2, 2)
+    assert singleton is not None
+    assert singleton.features == ()
 
 
 @pytest.mark.parametrize(
