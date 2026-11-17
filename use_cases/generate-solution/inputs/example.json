@@ -1,9 +1,9 @@
 {
-    "rows": 3,
-    "columns": 3,
+    "rows": 4,
+    "columns": 4,
     "element_coverage_percent": 20,
     "element_type_count": 2,
-    "room_count": 3,
+    "room_count": 4,
     "seed": 2342342,
     "rule_types": [
         "in",

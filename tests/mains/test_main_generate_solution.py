@@ -13,10 +13,10 @@ def test_main_prints_repeatable_solution_json(
 ) -> None:
     config = {
         "rows": 3,
-        "columns": 3,
-        "element_coverage_percent": 50,
+        "columns": 4,
+        "element_coverage_percent": 33,
         "element_type_count": 3,
-        "room_count": 3,
+        "room_count": 2,
         "seed": 17,
     }
     path = tmp_path / "generation.json"
@@ -43,8 +43,8 @@ def test_main_prints_repeatable_solution_json(
         assert item["size"] in (1, 2)
         assert item["count"] >= 1
     cells = data["map"]["cells"]
-    assert len(cells) == 9
-    assert len({cell["room"] for cell in cells}) == 3
+    assert len(cells) == 12
+    assert len({cell["room"] for cell in cells}) == 2
     assert len(data["placements"]) == 3
     assert len({position[0] for position in data["placements"].values()}) == 3
     assert len({position[1] for position in data["placements"].values()}) == 3

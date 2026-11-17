@@ -12,7 +12,7 @@ Antes de buscar las pistas, se necesita una "foto fija" válida del tablero. Par
 
 Las reglas de este modelo generador espacial incluyen:
 
-* **Topología de Cuadrícula:** Variables booleanas para celdas, identificadores de habitaciones (cada habitación debe contar con un mínimo de 4 celdas conectadas), presencia de personas y objetos (2-4 elementos con frecuencias de aparición predefinidas).  
+* **Topologia de Cuadricula:** Las habitaciones son no vacias y conexas por lados, con semillas aleatorias separadas fijadas antes de resolver. Se permiten formas en L, pero cada interseccion con una fila o columna debe ser continua, evitando huecos y formas en U. Cada habitacion ocupa al menos el 75% de su rectangulo envolvente, cuya proporcion entre lados es como maximo 1.5. Se minimiza la distancia a las semillas con perturbaciones aleatorias; se aceptan soluciones factibles con un limite de busqueda de 10 segundos, sin exigir optimalidad. Se conserva el limite global de como maximo una habitacion de una sola fila o columna: con la proporcion actual solo puede ser 1x1, y no es obligatoria. Las semillas pueden afectar a la viabilidad. Se modelan tambien la presencia de personas y los muebles fijados por la especificacion.
 * **Distribución de Personas:** Restricciones de filas y columnas (no se pueden repetir personas en la misma fila ni en la misma columna). Además, una persona solo puede compartir celda con un objeto si dicho objeto es del tipo "ocupable".  
 * **La Condición del Asesino:** Se añade una restricción específica sobre la variable que representa al asesino. Éste debe encontrarse en una habitación cuya suma total de personas alojadas sea exactamente dos (el asesino y una persona más).  
 * **Estocasticidad:** Para evitar extraer siempre la misma configuración óptima, el CP-SAT se configura con `PORTFOLIO_SEARCH` y semillas aleatorias. Al resolver, se extraen los valores finales obteniendo la **Solución Objetivo (\$S^\*\$)**.
@@ -23,7 +23,7 @@ Con la solución \$S^\*\$ fijada, se procede a instanciar todas las pistas lógi
 
 * **Plantillas de Reglas:** Se definen iteradores para lógicas clásicas (ej. ubicación en habitación, adyacencia de celdas, o compartir fila/columna).  
 * **Filtrado Estricto sobre \$S^\*\$:** Se evalúan las plantillas frente a las coordenadas de la solución objetivo. El sistema **solo guarda las reglas que son estrictamente verdaderas** en \$S^\*\$. Esto elimina la explosión combinatoria desde el inicio.  
-* **Metadatos:** Cada regla válida creada se etiqueta con sus personajes *protagonistas* y se le asigna un nivel de *dificultad* basado en su coste cognitivo (ej. "X comparte habitación con Y" es más fácil que "X está en la misma fila que Y").
+* **Metadatos:** Cada regla tiene un unico *protagonista*: su sujeto (`person`), la primera persona de la clausula. Las personas referenciadas son objetivos (`targets`), no protagonistas. Se le asigna un nivel de *dificultad* basado en su coste cognitivo.
 
 # **4\. Fase 3: Subset de Reglas, Unicidad y Nivel de Dificultad**
 
@@ -48,8 +48,9 @@ demostrado del maestro en cada iteracion. `target_difficulty` es obligatorio
 en `generate-puzzle` y debe ser un entero no negativo.
 
 En el modelo actual se usa `victim` como excepcion de cobertura en lugar de un
-asesino separado. La cobertura cuenta todos los `protagonists`, no solo la
-persona que enuncia la pista.
+asesino separado. La cobertura cuenta solo el sujeto de cada pista
+(`protagonists` contiene unicamente `person`), nunca las personas referenciadas.
+Las disyunciones `any_of` tambien tienen un unico sujeto.
 
 ## **4.2. El Subproblema (Demostración de Unicidad mediante CP-SAT)**
 
@@ -74,7 +75,7 @@ Contiene las entidades y la lógica de las restricciones, totalmente agnósticas
 * **Entidades:** Clases para `Map`, `Person`, `Element`, `Room`, `GridCell` (inicializables a partir de configuraciones como `map.json`, `personas.json`, `element.json`).  
 * **Motor de Reglas (Patrón Estrategia):** Cada regla es un objeto que hereda de una clase base `BaseRule` e implementa:  
   * `description`: El texto de la pista para el jugador.  
-  * `protagonists`: Lista de personajes implicados (para asegurar la cobertura en el Modelo Maestro).  
+  * `protagonists`: Conjunto con el unico sujeto (`person`), usado para la cobertura en el Modelo Maestro.
   * `difficulty`: Peso cognitivo de la regla (para la optimización lexicográfica).  
   * `evaluate(solution)`: Método que devuelve `True/False` verificando lógicamente si la regla se cumple en una solución dada \$S^\*\$.  
   * `apply_to_model(model, vars_dict)`: Método que inyecta las restricciones reales y matemáticas en el modelo CP-SAT.

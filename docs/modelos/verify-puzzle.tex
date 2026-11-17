@@ -1,0 +1,253 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\B}{\{0,1\}}
+\title{Murdoku: modelo del caso de uso\\Verificar un puzzle}
+\author{Documentaci\'on de la implementaci\'on}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Alcance y fuentes}
+
+El caso de uso \texttt{verify-puzzle}, ejecutado con
+\texttt{murdoku-checker}, recibe mapa, cat\'alogo de elementos, personas
+y pistas. Busca hasta dos soluciones para distinguir imposibilidad,
+unicidad y ambig\"uedad. El mapa y los muebles son \textbf{datos fijos}.
+No se genera una nueva distribuci\'on ni se optimiza la dificultad.
+
+Las fuentes principales son:
+\begin{itemize}
+  \item \path{murdoku_checker\apps\solution_checker\variable_builder.py}.
+  \item \path{murdoku_checker\apps\solution_checker\constraint_builder.py}.
+  \item \path{murdoku_checker\apps\solution_checker\model.py}.
+  \item \path{murdoku_checker\apps\solution_checker\solution_checker.py}.
+  \item Las estrategias de \path{murdoku_checker\domain\rules}.
+\end{itemize}
+Las f\'ormulas siguientes describen las restricciones l\'ogicas;
+CP-SAT puede emplear literales auxiliares equivalentes para expresarlas.
+
+\section{Datos y variables}
+
+Sean $P$ las personas, $V$ las celdas existentes, $F$ los tipos de
+elemento y $\mathcal R$ las pistas recibidas. Para $c\in V$ son datos:
+su fila $i(c)$, columna $j(c)$, habitaci\'on $\kappa(c)$ y conjunto
+de elementos $F(c)$. Sea $o_f=1$ si el elemento $f$ es ocupable.
+
+El conjunto de celdas disponibles es
+\[
+ U=\{c\in V:\ o_f=1\text{ para todo }f\in F(c)\}.
+\]
+Una celda sin elementos pertenece a $U$. Si contiene varios, todos
+deben ser ocupables. Las referencias a personas, habitaciones y
+elementos se validan antes de resolver; una referencia inexistente
+es un error de entrada.
+
+Se construye una variable por persona y celda disponible:
+\[
+ q_{pc}\in\B\qquad(p\in P,\ c\in U),
+\]
+donde $q_{pc}=1$ indica que $p$ est\'a en $c$. No se crean variables
+de colocaci\'on para celdas bloqueadas.
+
+\section{Modelo base de colocaci\'on}
+
+Las restricciones comunes a todas las pistas son
+\begin{align}
+ \sum_{c\in U}q_{pc}&=1 &&\forall p\in P,\\
+ \sum_{\substack{p\in P,\ c\in U\\i(c)=i}}q_{pc}&\leq 1
+      &&\forall\text{ fila }i,\\
+ \sum_{\substack{p\in P,\ c\in U\\j(c)=j}}q_{pc}&\leq 1
+      &&\forall\text{ columna }j.
+\end{align}
+Si una persona carece de celdas disponibles, su primera igualdad
+es $0=1$, de modo que el modelo es infactible.
+
+Se definen las expresiones, no nuevas decisiones independientes,
+\[
+ Y_p=\sum_{c\in U}i(c)q_{pc},\qquad
+ X_p=\sum_{c\in U}j(c)q_{pc},\qquad
+ K_p=\sum_{c\in U}\kappa(c)q_{pc}.
+\]
+Para $K_p$ se asigna a cada nombre de habitaci\'on un entero distinto.
+La colocaci\'on exactamente una vez hace que las expresiones sean
+las coordenadas y la habitaci\'on elegidas.
+
+\paragraph{Diferencia respecto al generador.}
+El checker no vuelve a construir habitaciones ni muebles y no impone
+conectividad, tama\~nos de habitaciones o porcentajes de cobertura.
+Tampoco se aplica el l\'imite del generador de como m\'aximo una
+habitaci\'on contenida en una sola fila o columna: un mapa fijo
+existente no se rechaza por contener varias habitaciones estrechas.
+Tampoco se exigen rectangularidad ni proporci\'on m\'axima de 1.5;
+estas son restricciones del generador, no del checker de mapas fijos.
+Tampoco impone autom\'aticamente que la v\'ictima comparta habitaci\'on
+con exactamente otra persona. Esa condici\'on pertenece al generador
+de soluciones. La marca de v\'ictima y los dem\'as atributos personales
+no a\~naden restricciones por s\'i solos. Tampoco se exige cobertura
+narrativa de las personas: es una restricci\'on del maestro generador.
+
+\section{Modelo de las pistas}
+
+Cada pista $r$ tiene un \'unico protagonista $p(r)$, el sujeto de su
+cl\'ausula. Una persona mencionada como referencia es un objetivo,
+no un protagonista adicional. Esto no impide que la pista restrinja
+tambi\'en la posici\'on de esa persona.
+
+Sea $\varphi_r(q)$ el predicado de verdad de la pista. Aplicar una
+pista al modelo equivale a imponer $\varphi_r(q)=1$. Cuando se
+compone dentro de otra, su literal $b_r\in\B$ cumple
+\[
+ b_r=1\Longleftrightarrow\varphi_r(q).
+\]
+La equivalencia se implementa en ambos sentidos, no como una sola
+implicaci\'on. Las conjunciones y disyunciones vac\'ias tienen los
+valores l\'ogicos usuales: verdadero y falso, respectivamente.
+
+\subsection{Pertenencia: \texttt{in}}
+
+Para un objetivo habitaci\'on $k$, sea
+$A_r=\{c\in V:\kappa(c)=k\}$; para un objetivo elemento $f$, sea
+$A_r=\{c\in V:f\in F(c)\}$. La pista exige
+\[
+ \sum_{c\in U\cap A_r}q_{p(r)c}=1.
+\]
+Con \texttt{is\_unique=True} se exige adem\'as
+\[
+ q_{uc}=0\qquad
+ \forall u\in P\setminus\{p(r)\},\ c\in U\cap A_r.
+\]
+La exclusividad se aplica a todas las celdas de la habitaci\'on o
+de ese tipo de elemento, no solo a un ejemplar concreto.
+
+\subsection{Coordenada fija: \texttt{in\_coordinate}}
+
+Para un valor $a$ y eje fila o columna, respectivamente:
+\[
+ Y_{p(r)}=a\qquad\text{o}\qquad X_{p(r)}=a.
+\]
+Los datos usan coordenadas desde cero; la descripci\'on textual de la
+pista muestra la coordenada m\'as uno.
+
+\subsection{Adyacencia: \texttt{next\_to} y \texttt{not\_next\_to}}
+
+Para un tipo de elemento $f$, se precalcula
+\[
+ A_f=\{c\in V:\ \exists u\in V,\ f\in F(u),\
+ |i(c)-i(u)|+|j(c)-j(u)|=1,\ \kappa(c)=\kappa(u)\}.
+\]
+\texttt{next\_to} exige que la persona est\'e en $A_f$;
+\texttt{not\_next\_to}, que est\'e en $V\setminus A_f$.
+No se admiten diagonales ni adyacencia a trav\'es de una pared.
+La segunda pista es la negaci\'on exacta de la primera, aunque no
+haya ninguna celda con el elemento.
+
+\subsection{Relaci\'on de habitaci\'on: \texttt{room\_relation}}
+
+Dados el sujeto $p$ y la persona objetivo $u$:
+\[
+ \varphi_r(q)=
+ \begin{cases}
+  [K_p=K_u],&\texttt{same},\\
+  [K_p\neq K_u],&\texttt{different}.
+ \end{cases}
+\]
+Los corchetes indican el valor booleano del predicado.
+
+\subsection{Posici\'on relativa: \texttt{relative\_position}}
+
+Sea $C_p=Y_p$ para norte o sur, y $C_p=X_p$ para este u oeste.
+El signo es $\sigma=1$ para sur o este y $\sigma=-1$ para norte
+u oeste. Para una diferencia $\delta$:
+\[
+ M_r(\delta)=
+ \begin{cases}
+  [\sigma\delta>0],&\text{sin distancia exacta},\\
+  [\delta=\sigma h],&\text{con distancia exacta }h\geq1.
+ \end{cases}
+\]
+Con objetivo persona $u$, $\varphi_r(q)=M_r(C_p-C_u)$.
+Solo se compara el eje indicado: no se exige coincidencia en el
+otro eje ni pertenencia a la misma habitaci\'on.
+
+Con objetivo elemento $f$, la referencia es \emph{otra persona
+existente}, no la coordenada de un mueble vac\'io. Sea $A$ el conjunto
+de celdas con $f$ si \texttt{feature\_relation=in}, o $A_f$ de la
+secci\'on anterior si vale \texttt{next\_to}. Entonces:
+\[
+ \varphi_r(q)=
+ \bigvee_{\substack{u\in P\setminus\{p\},\ c\in U,\ d\in U\cap A\\
+ M_r(C(c)-C(d))=1}}
+       (q_{pc}\land q_{ud}).
+\]
+$C(c)$ es la coordenada del eje correspondiente de $c$.
+La implementaci\'on crea literales de conjunci\'on para los pares
+compatibles y una disyunci\'on sobre ellos.
+
+\subsection{Disyunci\'on: \texttt{any\_of}}
+
+Para las condiciones $r_1,\ldots,r_\ell$, con $\ell\geq2$:
+\[
+ \varphi_r(q)=\bigvee_{a=1}^{\ell}\varphi_{r_a}(q).
+\]
+Es una disyunci\'on inclusiva: varias condiciones pueden ser ciertas.
+Se admiten condiciones anidadas al verificar y todas deben tener el
+mismo sujeto que la regla exterior. El checker no convierte esta
+expresi\'on en una disyunci\'on exclusiva.
+
+\section{Modelo completo y enumeraci\'on}
+
+El conjunto de soluciones es
+\[
+ \mathcal F(\mathcal R)=
+ \{q:\ q\text{ satisface el modelo base},\
+       \varphi_r(q)=1\ \forall r\in\mathcal R\}.
+\]
+No hay objetivo. \texttt{check\_solutions} activa
+\texttt{enumerate\_all\_solutions} y detiene el callback cuando encuentra
+dos soluciones. Conserva solo la primera colocaci\'on:
+\begin{center}
+\begin{tabular}{cl}
+\hline
+Recuento & Interpretaci\'on\\
+\hline
+$0$ & No hay soluci\'on.\\
+$1$ & Soluci\'on \'unica, tras agotar la b\'usqueda.\\
+$2$ & Al menos dos soluciones; no es el total exacto.\\
+\hline
+\end{tabular}
+\end{center}
+Un estado no concluyente del solver produce \texttt{RuntimeError}.
+Un l\'imite de enumeraci\'on igual a uno no basta para demostrar
+unicidad; el comando usa siempre dos.
+
+\section{Variante usada por el generador: excluir un objetivo conocido}
+
+La funci\'on \texttt{find\_alternative} recibe adem\'as una colocaci\'on
+$S^\star$, con celda $c_p^\star$ para cada persona. Primero comprueba
+que usa exactamente las personas y el mapa de entrada, que no repite
+filas ni columnas, que ocupa celdas disponibles y que satisface las
+pistas. Despu\'es a\~nade:
+\[
+ \bigvee_{p\in P}\neg q_{p,c_p^\star},
+ \qquad\text{equivalentemente}\qquad
+ \sum_{p\in P}q_{p,c_p^\star}\leq |P|-1.
+\]
+La cl\'ausula exige cambiar al menos una persona, no todas. Se busca
+una \'unica alternativa:
+\begin{itemize}
+  \item Si aparece, devuelve $S_{\mathrm{alt}}\neq S^\star$.
+  \item Si no existe ninguna, devuelve \texttt{None}; como $S^\star$
+        es factible, queda demostrada su unicidad.
+  \item Si el objetivo es inv\'alido o el estado no es concluyente,
+        se comunica un error, no una prueba de unicidad.
+\end{itemize}
+Esta variante reutiliza el mismo modelo base y las mismas estrategias
+de pistas. No modifica habitaciones, muebles ni personas.
+
+\end{document}

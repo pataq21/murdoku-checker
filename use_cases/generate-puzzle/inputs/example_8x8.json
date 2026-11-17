@@ -1,0 +1,17 @@
+{
+    "rows": 8,
+    "columns": 8,
+    "element_coverage_percent": 30,
+    "element_type_count": 5,
+    "room_count": 5,
+    "seed": 2342342,
+    "target_difficulty": 24,
+    "rule_types": [
+        "in",
+        "next_to",
+        "not_next_to",
+        "in_coordinate",
+        "room_relation",
+        "relative_position"
+    ]
+}

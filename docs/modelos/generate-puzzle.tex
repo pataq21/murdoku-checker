@@ -1,0 +1,349 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\B}{\{0,1\}}
+\title{Murdoku: modelos del caso de uso\\Generar un puzzle}
+\author{Documentaci\'on de la implementaci\'on}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Objetivo y flujo}
+
+El caso de uso \texttt{generate-puzzle}, ejecutado mediante
+\texttt{murdoku-generate}, construye una soluci\'on objetivo $S^\star$,
+enumera un pool de pistas verdaderas y selecciona un subconjunto que:
+\begin{enumerate}
+  \item garantice que $S^\star$ sea la \'unica colocaci\'on posible;
+  \item minimice la distancia a la dificultad solicitada;
+  \item a igualdad de distancia, use el menor n\'umero de pistas.
+\end{enumerate}
+La optimizaci\'on es condicional al mapa, las personas y el pool de
+esta ejecuci\'on. No compara mapas distintos ni vuelve a sortear
+$S^\star$ si el pool resulta insuficiente.
+
+Se construyen tres clases de modelos:
+\[
+ \text{generaci\'on espacial}
+ \ \longrightarrow\ \text{maestro de selecci\'on}
+ \ \longleftrightarrow\ \text{subproblema de unicidad}.
+\]
+El pool se construye por enumeraci\'on y evaluaci\'on, no mediante
+otro modelo CP-SAT.
+
+Las fuentes principales son:
+\begin{itemize}
+  \item \path{murdoku_checker\mains\main_generate_new_puzzle.py}.
+  \item \path{murdoku_checker\apps\solution_creator\placement_model.py}.
+  \item \path{murdoku_checker\apps\pool_generator\candidate_rules.py}
+        y \path{murdoku_checker\apps\pool_generator\pool_generator.py}.
+  \item \path{murdoku_checker\apps\problem_builder\problem_builder.py}.
+  \item \path{murdoku_checker\apps\solution_checker\solution_checker.py}.
+\end{itemize}
+
+\section{Fase 1: modelo espacial para obtener $S^\star$}
+
+Sean $H,W$ las dimensiones, $N=HW$, $K$ las habitaciones y
+$P=\{1,\ldots,n\}$ las personas, con $n=\min(H,W)$. La v\'ictima
+es $v=n$. La especificaci\'on aleatoria fija tipos de muebles,
+tama\~nos $s_t\in\{1,2\}$, cantidades $m_t\geq1$ y ocupabilidad $o_t$,
+con presupuesto
+\[
+ \sum_t s_tm_t
+   =\operatorname{round}\left(HW\,\frac{\alpha}{100}\right).
+\]
+Estos valores se fijan antes de CP-SAT.
+
+El modelo espacial contiene:
+\begin{description}
+  \item[Habitaciones.] Una variable entera $r_c\in\{0,\ldots,K-1\}$
+        por celda, una semilla fija $s_k$ por habitaci\'on,
+        una profundidad $d_c\in\{0,\ldots,N-1\}$ y arcos
+        booleanos $a_{cu}$ a vecinos ortogonales.
+  \item[Muebles.] Un booleano $f_{iA}$ por ejemplar $i$ y huella
+        admisible $A$, y un indicador $b_c$ de celda bloqueada.
+  \item[Personas.] Fila $Y_p$, columna $X_p$, \'indice
+        $Q_p=WY_p+X_p$, habitaci\'on $K_p$ y un booleano $h_p$
+        que indica si $p\neq v$ acompa\~na a la v\'ictima.
+\end{description}
+
+Con $V$ el conjunto de celdas y $\mathcal N(c)$ sus vecinos,
+se eligen semillas separadas antes de resolver. Sea
+$S=\{s_k:k\in\mathcal K\}$. Las restricciones de conectividad son
+\begin{align*}
+ r_{s_k}&=k,\quad d_{s_k}=0,\\
+ \sum_{u\in\mathcal N(c)}a_{cu}&=1\quad(c\notin S),&
+ a_{cu}=1&\Longrightarrow r_c=r_u,\ d_c>d_u.
+\end{align*}
+Imponen habitaciones no vac\'ias y conexas, sin un m\'inimo de
+cuatro celdas.
+Las formas pueden ser no rectangulares: cada intersecci\'on con
+una fila o columna es continua y el \'area ocupa al menos el 75\%
+de su envolvente, con proporci\'on entre ejes como m\'aximo 1.5.
+Se minimiza la distancia a las semillas con costes aleatorios
+fijos, aceptando soluciones factibles tras un m\'aximo de diez
+segundos sin exigir optimalidad espacial.
+
+Adem\'as, para cada habitaci\'on se obtiene un indicador exacto
+\[
+ t_k=
+ \left[
+ \left|\{i(c):r_c=k\}\right|=1
+ \ \lor\
+ \left|\{j(c):r_c=k\}\right|=1
+ \right],
+ \qquad \sum_k t_k\leq1.
+\]
+Por tanto, como m\'aximo una habitaci\'on puede caber en una sola
+fila o columna, contando las orientaciones juntas. Una celda
+individual cuenta una vez y no se exige que haya ninguna habitaci\'on
+estrecha. Se calculan adem\'as el n\'umero de filas $H_k$,
+columnas $W_k$ y celdas $A_k$ de cada habitaci\'on, y se exige
+\[
+ 4A_k\geq3H_kW_k,\qquad 2H_k\leq3W_k,\qquad 2W_k\leq3H_k.
+\]
+La conectividad hace que las coordenadas ocupadas sean consecutivas.
+La desigualdad de \'area exige ocupar al menos el 75\% del
+rect\'angulo envolvente y las otras limitan su proporci\'on a $3/2$.
+Se permiten formas en L, pero no huecos. Una habitaci\'on estrecha
+solo puede ser $1\times1$, y sigue siendo opcional y \'unica como
+m\'aximo. La formulaci\'on auxiliar completa est\'a en
+\texttt{generate-solution.tex}. Algunas configuraciones pueden
+resultar infactibles bajo estas restricciones de forma.
+
+Cada ejemplar elige una huella, no hay solapamientos, los muebles de
+dos celdas quedan en una misma habitaci\'on y $b_c$ es la suma de
+las huellas seleccionadas no ocupables que cubren $c$.
+Las personas cumplen
+\[
+ b_{Q_p}=0,\qquad
+ \operatorname{AllDifferent}((Y_p)_p),\qquad
+ \operatorname{AllDifferent}((X_p)_p).
+\]
+Finalmente $K_p=r_{Q_p}$, $h_p\Longleftrightarrow K_p=K_v$ y
+$\sum_{p\neq v}h_p=1$: la habitaci\'on de la v\'ictima contiene
+exactamente dos personas.
+
+Es un problema de factibilidad sin objetivo, resuelto con b\'usqueda
+aleatorizada. Su formulaci\'on detallada est\'a en
+\texttt{generate-solution.tex}. Una vez extra\'ido $S^\star$, el mapa
+y todos los muebles quedan fijos para las fases siguientes.
+
+\section{Fase 2: construcci\'on del pool}
+
+Sea $\mathcal R$ el pool final de pistas. Para una pista $r$:
+\begin{description}
+  \item[$p(r)$] Su \'unico protagonista, el sujeto \texttt{person} de
+        la cl\'ausula, aunque se mencionen otras personas.
+  \item[$d_r$] Su dificultad entera positiva.
+  \item[$\varphi_r(S)$] Su predicado de verdad sobre una colocaci\'on.
+\end{description}
+
+Se enumeran las familias habilitadas por \texttt{rule\_types}, usando
+habitaciones, elementos, coordenadas y diferencias de coordenadas
+presentes en el mapa. No se generan pistas cuyo sujeto sea la
+v\'ictima, pero esta s\'i puede ser una persona objetivo.
+
+Las reglas simples se conservan si $\varphi_r(S^\star)=1$.
+Si est\'a habilitada \texttt{any\_of}, se forman pares no ordenados
+de condiciones simples habilitadas, sin anidamiento y con el mismo
+sujeto. Solo se conserva el par si
+\[
+ \varphi_{r_1}(S^\star)+\varphi_{r_2}(S^\star)=1.
+\]
+Este filtro hace que exactamente una rama sea verdadera
+\emph{en el objetivo}. La sem\'antica posterior sigue siendo
+$\varphi_{r_1}\lor\varphi_{r_2}$: no se impone XOR en las alternativas.
+
+Las dificultades implementadas son:
+\begin{center}
+\begin{tabular}{ll}
+\hline
+Familia & Dificultad $d_r$\\
+\hline
+\texttt{in} & $1$; $2$ con exclusividad\\
+\texttt{in\_coordinate} & $2$\\
+\texttt{next\_to} & $2$\\
+\texttt{not\_next\_to} & $3$\\
+\texttt{room\_relation} & $2$ misma habitaci\'on; $3$ diferente\\
+\texttt{relative\_position} &
+ $3+[\text{distancia exacta}]+[\text{objetivo elemento}]$\\
+\texttt{any\_of} & $1+\sum_a d_{r_a}$\\
+\hline
+\end{tabular}
+\end{center}
+Los corchetes representan indicadores booleanos. La dificultad total
+es una suma de pesos de pistas, no una medida aprendida de dificultad
+humana ni del tiempo de resoluci\'on.
+
+\section{Fase 3: modelo maestro}
+
+\subsection{Variables, expresiones y cobertura}
+
+Sean $m=|\mathcal R|$ y $T\in\mathbb Z_{\geq0}$ el
+\texttt{target\_difficulty}, obligatorio para este caso de uso.
+Se crean
+\[
+ x_r\in\B\quad(r\in\mathcal R),\qquad
+ D(x)=\sum_{r\in\mathcal R}d_rx_r,\qquad
+ C(x)=\sum_{r\in\mathcal R}x_r.
+\]
+$x_r=1$ selecciona la pista; $D$ y $C$ son expresiones lineales.
+Cada persona distinta de la v\'ictima debe ser sujeto de al menos
+una pista:
+\[
+ \sum_{\substack{r\in\mathcal R\\p(r)=p}}x_r\geq1
+ \qquad\forall p\in P\setminus\{v\}.
+\]
+Una menci\'on como objetivo no satisface cobertura. Esto se aplica
+tambi\'en a las disyunciones. Una suma vac\'ia hace el maestro
+infactible. La excepci\'on de cobertura es \texttt{victim}; no hay
+un asesino independiente en este modelo.
+
+\subsection{Goal Programming lexicogr\'afico}
+
+Sea $D_{\max}=\sum_r d_r$. Se a\~nade una variable entera
+\[
+ e\in\{0,\ldots,E_{\max}\},\qquad
+ E_{\max}=\max\{T,|D_{\max}-T|\},\qquad
+ e=|D(x)-T|.
+\]
+La igualdad absoluta se implementa con \texttt{add\_abs\_equality}.
+El objetivo es
+\[
+ \boxed{\min\ (m+1)e+C(x).}
+\]
+Como $0\leq C(x)\leq m$ y $e$ es entero, reducir el error en una unidad
+mejora el objetivo m\'as que cualquier cambio posible en el n\'umero
+de pistas. Por tanto, equivale exactamente a minimizar
+lexicogr\'aficamente $(e,C(x))$. No se usa un peso fijo como $100$.
+
+El maestro inicial solo impone cobertura y objetivo. No contiene
+todas las restricciones de unicidad desde el principio. En cada
+iteraci\'on se exige que CP-SAT devuelva \texttt{OPTIMAL}, no basta
+con encontrar una selecci\'on factible.
+
+\section{Subproblema de unicidad con mapa fijo}
+
+Para la selecci\'on $x^{(k)}$, sea
+$\mathcal R_k=\{r:x_r^{(k)}=1\}$.
+Con $U$ las celdas ocupables, se construyen booleanos $q_{pc}$:
+\begin{align}
+ \sum_{c\in U}q_{pc}&=1 &&\forall p\in P,\\
+ \sum_{\substack{p\in P,\ c\in U\\i(c)=i}}q_{pc}&\leq1
+      &&\forall i,\\
+ \sum_{\substack{p\in P,\ c\in U\\j(c)=j}}q_{pc}&\leq1
+      &&\forall j,\\
+ \varphi_r(q)&=1 &&\forall r\in\mathcal R_k.
+\end{align}
+Cada $\varphi_r$ se inyecta mediante la estrategia de la pista, con
+literales auxiliares de equivalencia cuando es necesario.
+Las f\'ormulas por familia est\'an en \texttt{verify-puzzle.tex}.
+Las reglas espaciales conservan la misma sem\'antica que
+\texttt{evaluate}, incluida la existencia de otra persona cuando
+una posici\'on relativa tiene por objetivo un elemento.
+
+Si $c_p^\star$ es la celda de $p$ en $S^\star$, se excluye la
+colocaci\'on completa:
+\[
+ \bigvee_{p\in P}\neg q_{p,c_p^\star}
+ \quad\Longleftrightarrow\quad
+ \sum_{p\in P}q_{p,c_p^\star}\leq |P|-1.
+\]
+Se busca al menos una alternativa, sin objetivo de optimizaci\'on.
+Antes de excluirlo, el checker valida que $S^\star$ es una
+colocaci\'on factible del modelo recibido.
+
+\paragraph{Alcance de la unicidad.}
+Este subproblema no mueve habitaciones ni muebles y, a diferencia de
+la fase espacial, no incorpora autom\'aticamente la condici\'on de
+los dos ocupantes de la habitaci\'on de la v\'ictima. La prueba se
+realiza con el modelo base del checker y las pistas seleccionadas.
+Las alternativas pueden incumplir aquella condici\'on del generador;
+no se descartan por ese motivo.
+
+\section{Cortes l\'ogicos de Benders}
+
+Si se obtiene una alternativa $S_{\mathrm{alt}}^{(k)}$, se eval\'ua
+todo el pool y se define
+\[
+ B_k=\{r\in\mathcal R:\varphi_r(S_{\mathrm{alt}}^{(k)})=0\}.
+\]
+Se a\~nade al maestro la cl\'ausula
+\[
+ \boxed{\sum_{r\in B_k}x_r\geq1,}
+ \qquad\text{equivalente a }\bigvee_{r\in B_k}x_r.
+\]
+El corte exige seleccionar alguna pista que rompa esa alternativa.
+No obliga a conservar todas las pistas de la selecci\'on anterior
+ni a aumentar mon\'otonamente su n\'umero.
+
+Si $B_k=\varnothing$, incluso el pool completo admite la alternativa:
+no puede garantizar unicidad y la app produce \texttt{ValueError}.
+No se a\~nade un corte vac\'io para simular una soluci\'on.
+
+\section{Algoritmo y garant\'ia de optimalidad}
+
+\begin{enumerate}
+  \item Validar $T$, la v\'ictima y la verdad de todas las pistas del
+        pool en $S^\star$. Construir el maestro inicial.
+  \item Resolver el maestro hasta demostrar optimalidad y extraer
+        $\mathcal R_k$.
+  \item Construir el checker con $\mathcal R_k$, excluir $S^\star$
+        y buscar una alternativa.
+  \item Si no existe alternativa, devolver la selecci\'on y terminar.
+  \item Si existe y $B_k\neq\varnothing$, a\~nadir el corte y volver
+        al paso 2. Si $B_k=\varnothing$, comunicar pool insuficiente.
+\end{enumerate}
+
+Cada selecci\'on que hace \'unico a $S^\star$ tiene que satisfacer
+todos los cortes: si no eligiera ninguna pista de $B_k$, admitir\'ia
+la alternativa que origin\'o ese corte. El maestro es, por tanto,
+una relajaci\'on del problema de selecci\'on \'unica. Cuando su
+\'optimo supera el checker, tambi\'en es \'optimo global entre los
+subconjuntos \'unicos del pool para $(e,C)$.
+
+La terminaci\'on matem\'atica se apoya en que el n\'umero de
+colocaciones sobre un mapa finito es finito y cada corte elimina la
+alternativa actual de las futuras selecciones. Esto no proporciona
+un l\'imite pr\'actico peque\~no para el tiempo ni las iteraciones.
+No hay l\'imite de tiempo o iteraciones configurado en esta app.
+
+\section{Estados, progreso y resultado}
+
+\begin{description}
+  \item[Maestro infactible:] Se comunica \texttt{ValueError}; el pool
+        no permite la selecci\'on exigida. En el modelo inicial puede
+        deberse a falta de cobertura.
+  \item[Maestro sin \'optimo demostrado:] Se produce
+        \texttt{RuntimeError}, incluso si devuelve \texttt{FEASIBLE}.
+  \item[Subproblema sin alternativa:] Tras una resoluci\'on concluyente,
+        se garantiza la unicidad de $S^\star$.
+  \item[Subproblema no concluyente:] Se comunica un error; no se
+        interpreta como ausencia de alternativas.
+\end{description}
+
+El resultado \texttt{BuiltProblem} contiene el puzzle seleccionado,
+\texttt{total\_difficulty}, \texttt{difficulty\_error} e
+\texttt{iterations}. El error puede ser positivo: el target no es una
+restricci\'on dura y puede ser imposible alcanzarlo con unicidad.
+
+El callback \texttt{on\_progress} recibe un \texttt{BuildProgress}
+\textbf{despu\'es} de cada comprobaci\'on de unicidad. Informa del
+n\'umero de candidato, dificultad, target, error absoluto, cantidad
+de pistas y unicidad. No informa mientras CP-SAT sigue resolviendo
+un maestro ni cuenta sus soluciones internas. Al terminar con \'exito,
+si hubo $k$ candidatos comprobados, se a\~nadieron $k-1$ cortes.
+
+El comando conserva el pool, el puzzle y las m\'etricas en
+\texttt{result.json}. Tambi\'en genera \texttt{solution.html}, con
+posiciones y pistas, y \texttt{puzzle.html}, con el mismo mapa y
+pistas pero sin revelar las posiciones de las personas. La
+presentaci\'on no construye modelos matem\'aticos adicionales.
+
+\end{document}

@@ -7,9 +7,9 @@
             "request": "launch",
             "module": "murdoku_checker.mains.main_generate_new_puzzle",
             "args": [
-                "use_cases\\generate-puzzle\\inputs\\example.json",
+                "use_cases\\generate-puzzle\\inputs\\example_8x8.json",
                 "--format",
-                "html"
+                "html",
             ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

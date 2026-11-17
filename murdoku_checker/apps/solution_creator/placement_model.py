@@ -39,10 +39,30 @@ class PlacementModel:
             for row, column in self.positions
         ]
         self.model = cp_model.CpModel()
+        self.room_seeds = self._choose_room_seeds()
         self.room_variables = self._build_rooms()
         self.furniture_options, blocked = self._build_furniture()
         self.person_variables = self._build_people(blocked)
         self._build_victim_constraint()
+
+    def _choose_room_seeds(self) -> tuple[int, ...]:
+        random = Random(self.specification.config.seed)
+        candidates = list(range(len(self.positions)))
+        random.shuffle(candidates)
+        seeds = [candidates.pop()]
+        distances = [len(self.positions)] * len(self.positions)
+        while len(seeds) < self.specification.config.room_count:
+            row, column = self.positions[seeds[-1]]
+            for cell in candidates:
+                other_row, other_column = self.positions[cell]
+                distances[cell] = min(
+                    distances[cell],
+                    abs(row - other_row) + abs(column - other_column),
+                )
+            seed = max(candidates, key=distances.__getitem__)
+            candidates.remove(seed)
+            seeds.append(seed)
+        return tuple(seeds)
 
     def _build_rooms(self) -> list[cp_model.IntVar]:
         config = self.specification.config
@@ -52,35 +72,87 @@ class PlacementModel:
             for cell in range(size)
         ]
         depths = [
-            self.model.new_int_var(0, size - 1, f"depth_{cell}")
-            for cell in range(size)
+            self.model.new_int_var(0, size - 1, f"depth_{cell}") for cell in range(size)
         ]
-        roots_by_cell: list[list[cp_model.IntVar]] = [[] for _ in range(size)]
-        for room in range(config.room_count):
-            roots = []
-            for cell in range(size):
-                root = self.model.new_bool_var(f"root_{room}_{cell}")
-                roots.append(root)
-                roots_by_cell[cell].append(root)
-                self.model.add(rooms[cell] == room).only_enforce_if(root)
-                self.model.add(depths[cell] == 0).only_enforce_if(root)
-            self.model.add_exactly_one(roots)
+        for room, cell in enumerate(self.room_seeds):
+            self.model.add(rooms[cell] == room)
+            self.model.add(depths[cell] == 0)
 
         # Every non-root follows a same-room neighbour of lower depth.
         # Cycles are impossible, so every cell reaches its room's unique root.
         for cell, neighbours in enumerate(self.neighbours):
+            if cell in self.room_seeds:
+                continue
             parents = []
             for neighbour in neighbours:
                 parent = self.model.new_bool_var(f"parent_{cell}_{neighbour}")
-                self.model.add(rooms[cell] == rooms[neighbour]).only_enforce_if(
-                    parent
-                )
-                self.model.add(depths[cell] > depths[neighbour]).only_enforce_if(
-                    parent
-                )
+                self.model.add(rooms[cell] == rooms[neighbour]).only_enforce_if(parent)
+                self.model.add(depths[cell] > depths[neighbour]).only_enforce_if(parent)
                 parents.append(parent)
-            self.model.add_exactly_one([*roots_by_cell[cell], *parents])
+            self.model.add_exactly_one(parents)
+        self._build_room_shape_constraints(rooms)
         return rooms
+
+    def _build_room_shape_constraints(self, rooms: list[cp_model.IntVar]) -> None:
+        config = self.specification.config
+        random = Random(config.seed)
+        thin_rooms = []
+        placement_costs = []
+        for room in range(config.room_count):
+            members = []
+            seed_row, seed_column = self.positions[self.room_seeds[room]]
+            for cell, variable in enumerate(rooms):
+                member = self.model.new_bool_var(f"room_{room}_member_{cell}")
+                self.model.add(variable == room).only_enforce_if(member)
+                self.model.add(variable != room).only_enforce_if(member.negated())
+                members.append(member)
+                row, column = self.positions[cell]
+                distance = abs(row - seed_row) + abs(column - seed_column)
+                placement_costs.append((10 * distance + random.randrange(10)) * member)
+
+            single_axes = []
+            extents = []
+            for axis, size in enumerate((config.rows, config.columns)):
+                coordinates = []
+                for coordinate in range(size):
+                    used = self.model.new_bool_var(
+                        f"room_{room}_axis_{axis}_coordinate_{coordinate}"
+                    )
+                    line = [
+                        member
+                        for position, member in zip(self.positions, members)
+                        if position[axis] == coordinate
+                    ]
+                    self.model.add_max_equality(used, line)
+                    # A row/column intersects a room in at most one interval.
+                    self.model.add_automaton(
+                        line, 0, [0, 1, 2],
+                        [(0, 0, 0), (0, 1, 1), (1, 1, 1), (1, 0, 2), (2, 0, 2)],
+                    )
+                    coordinates.append(used)
+                extent = self.model.new_int_var(1, size, f"room_{room}_extent_{axis}")
+                self.model.add(extent == sum(coordinates))
+                extents.append(extent)
+                single = self.model.new_bool_var(f"room_{room}_single_axis_{axis}")
+                self.model.add(extent == 1).only_enforce_if(single)
+                self.model.add(extent != 1).only_enforce_if(single.negated())
+                single_axes.append(single)
+
+            height, width = extents
+            area = self.model.new_int_var(1, config.cell_count, f"room_{room}_area")
+            self.model.add(area == sum(members))
+            bounding_area = self.model.new_int_var(
+                1, config.cell_count, f"room_{room}_bounding_area"
+            )
+            self.model.add_multiplication_equality(bounding_area, [height, width])
+            self.model.add(4 * area >= 3 * bounding_area)
+            self.model.add(2 * height <= 3 * width)
+            self.model.add(2 * width <= 3 * height)
+            thin = self.model.new_bool_var(f"room_{room}_thin")
+            self.model.add_max_equality(thin, single_axes)
+            thin_rooms.append(thin)
+        self.model.add_at_most_one(thin_rooms)
+        self.model.minimize(sum(placement_costs))
 
     def _build_furniture(
         self,
@@ -107,9 +179,7 @@ class PlacementModel:
                         f"furniture_{item.element.name}_{instance}_{index}"
                     )
                     choices.append(selected)
-                    options.append(
-                        _FurnitureOption(item.element.name, cells, selected)
-                    )
+                    options.append(_FurnitureOption(item.element.name, cells, selected))
                     if len(cells) == 2:
                         self.model.add(
                             self.room_variables[cells[0]]
@@ -129,9 +199,7 @@ class PlacementModel:
             blocked.append(variable)
         return options, blocked
 
-    def _build_people(
-        self, blocked: list[cp_model.IntVar]
-    ) -> list[cp_model.IntVar]:
+    def _build_people(self, blocked: list[cp_model.IntVar]) -> list[cp_model.IntVar]:
         config = self.specification.config
         rows = []
         columns = []
@@ -174,12 +242,13 @@ class PlacementModel:
     def solve(self, *, solver_logs: bool = False) -> GeneratedSolution | None:
         solver = cp_model.CpSolver()
         configure_solver_logging(solver, solver_logs)
-        solver.parameters.num_search_workers = 1
+        solver.parameters.num_search_workers = 8
         solver.parameters.random_seed = Random(
             self.specification.config.seed
         ).randrange(2**31)
         solver.parameters.randomize_search = True
         solver.parameters.search_branching = cp_model.PORTFOLIO_SEARCH
+        solver.parameters.max_time_in_seconds = 10
         status = solver.solve(self.model)
         if status == cp_model.INFEASIBLE:
             return None

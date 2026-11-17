@@ -37,8 +37,9 @@ def build_problem(
 ) -> BuiltProblem:
     """Select an optimal unique puzzle from the pool in input_.rules.
 
-    Coverage uses all protagonists except the victim. An insufficient pool
-    raises ValueError; inconclusive solver results raise RuntimeError.
+    Coverage requires a clue with each non-victim person as its subject.
+    An insufficient pool raises ValueError; inconclusive solver results
+    raise RuntimeError.
     When provided, on_progress receives one update per completed uniqueness check.
     """
     if type(target_difficulty) is not int or target_difficulty < 0:
@@ -54,8 +55,11 @@ def build_problem(
     selected = [master.new_bool_var(f"x_{index}") for index in range(len(pool))]
     for name in sorted(names - {victim}):
         master.add_bool_or(
-            [variable for rule, variable in zip(pool, selected)
-             if name in rule.protagonists]
+            [
+                variable
+                for rule, variable in zip(pool, selected)
+                if name in rule.protagonists
+            ]
         )
     difficulties = [rule.difficulty for rule in pool]
     total = sum(difficulties)
@@ -70,7 +74,7 @@ def build_problem(
     master.minimize(error * (len(pool) + 1) + sum(selected))
     solver = cp_model.CpSolver()
     configure_solver_logging(solver, solver_logs)
-    solver.parameters.num_search_workers = 1
+    solver.parameters.num_search_workers = 8
     iterations = 0
 
     while True:
@@ -83,25 +87,30 @@ def build_problem(
             )
         iterations += 1
         chosen = tuple(
-            rule for rule, variable in zip(pool, selected)
+            rule
+            for rule, variable in zip(pool, selected)
             if solver.boolean_value(variable)
         )
         puzzle = MurdokuInput(
-            map=input_.map, elements=input_.elements, people=input_.people,
+            map=input_.map,
+            elements=input_.elements,
+            people=input_.people,
             rules=Rules(rules=chosen),
         )
         alternative = find_alternative(puzzle, target, solver_logs=solver_logs)
         total_difficulty = sum(rule.difficulty for rule in chosen)
         difficulty_error = solver.value(error)
         if on_progress is not None:
-            on_progress(BuildProgress(
-                iteration=iterations,
-                target_difficulty=target_difficulty,
-                total_difficulty=total_difficulty,
-                difficulty_error=difficulty_error,
-                rule_count=len(chosen),
-                is_unique=alternative is None,
-            ))
+            on_progress(
+                BuildProgress(
+                    iteration=iterations,
+                    target_difficulty=target_difficulty,
+                    total_difficulty=total_difficulty,
+                    difficulty_error=difficulty_error,
+                    rule_count=len(chosen),
+                    is_unique=alternative is None,
+                )
+            )
         if alternative is None:
             return BuiltProblem(
                 puzzle=puzzle,
@@ -110,9 +119,12 @@ def build_problem(
                 iterations=iterations,
             )
         broken = [
-            variable for rule, variable in zip(pool, selected)
+            variable
+            for rule, variable in zip(pool, selected)
             if not rule.evaluate(alternative)
         ]
         if not broken:
-            raise ValueError("Clue pool cannot distinguish the target from an alternative")
+            raise ValueError(
+                "Clue pool cannot distinguish the target from an alternative"
+            )
         master.add_bool_or(broken)

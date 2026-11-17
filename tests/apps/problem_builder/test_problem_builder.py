@@ -128,7 +128,7 @@ def test_adds_cuts_until_the_target_is_unique(
         assert check_solutions(candidate).count == 2
 
 
-def test_coverage_counts_referenced_people_and_excludes_victim(
+def test_coverage_requires_the_subject_and_excludes_victim(
     problem: tuple[MurdokuInput, Solution],
 ) -> None:
     input_, _ = problem
@@ -140,8 +140,15 @@ def test_coverage_counts_referenced_people_and_excludes_victim(
         map=map_, people=input_.people, rules=Rules(rules=(rule,))
     )
     target = Solution(map=map_, placements={"Alice": (0, 0), "Bob": (1, 1)})
+    with pytest.raises(ValueError, match="cannot cover"):
+        build_problem(input_, target, victim="Bob", target_difficulty=0)
+
+    alice_rule = RelativePositionRule(
+        person="Alice", element=PersonElement(value="Bob"), direction=Direction.NORTH
+    )
+    input_ = input_.model_copy(update={"rules": Rules(rules=(rule, alice_rule))})
     result = build_problem(input_, target, victim="Bob", target_difficulty=0)
-    assert result.puzzle.rules.rules == (rule,)
+    assert result.puzzle.rules.rules == (alice_rule,)
 
 
 @pytest.mark.parametrize("pool_size", [0, 1])

@@ -11,7 +11,7 @@ from pydantic import (
 
 from murdoku_checker.domain.person import Name
 from murdoku_checker.domain.placement_variables import PlacementVariables
-from murdoku_checker.domain.rules.targets import PersonElement, Target
+from murdoku_checker.domain.rules.targets import Target
 from murdoku_checker.domain.solution import Solution
 
 
@@ -49,15 +49,8 @@ class BaseRule(BaseModel, ABC):
 
     @property
     def protagonists(self) -> frozenset[str]:
-        """People involved in the clue."""
-        return frozenset(
-            {self.person}
-            | {
-                target.value
-                for target in self.targets
-                if isinstance(target, PersonElement)
-            }
-        )
+        """Only the clause's subject; referenced people remain targets."""
+        return frozenset({self.person})
 
     @abstractmethod
     def evaluate(self, solution: Solution) -> bool:

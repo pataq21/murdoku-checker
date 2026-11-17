@@ -1,5 +1,30 @@
 # Murdoku Checker
 
+## Modelos matematicos en LaTeX
+
+Cada caso de uso tiene un documento `.tex` independiente con los datos,
+variables, restricciones, objetivo y criterios de resolucion implementados:
+
+- [Generar una solucion](docs/modelos/generate-solution.tex): especificacion
+  aleatoria, habitaciones conexas, muebles, personas y condicion de la victima.
+- [Verificar un puzzle](docs/modelos/verify-puzzle.tex): colocacion sobre mapa
+  fijo, formulacion de las familias de pistas y comprobacion de unicidad.
+- [Generar un puzzle](docs/modelos/generate-puzzle.tex): fases de generacion,
+  pool, maestro lexicografico, subproblema y cortes logicos de Benders.
+
+Son documentos autonomos en espanol. Con una distribucion LaTeX instalada,
+se pueden compilar desde la raiz del repositorio:
+
+```powershell
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\generate-solution.tex
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\verify-puzzle.tex
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory docs\modelos docs\modelos\generate-puzzle.tex
+```
+
+La documentacion distingue las restricciones reales de cada fase: el checker
+no reconstruye el mapa ni impone automaticamente la condicion de la victima
+del generador, y la cobertura de pistas solo cuenta a su sujeto.
+
 ## Arquitectura
 
 El codigo sigue la arquitectura por capas descrita en
@@ -27,7 +52,7 @@ Cada regla hereda de `BaseRule` (patron Estrategia) y expone:
 - `description`: texto de la pista para el jugador (en ingles; filas y
   columnas se numeran desde 1).
 - `difficulty`: coste cognitivo de la pista.
-- `protagonists`: personas implicadas.
+- `protagonists`: solo la persona sujeto de la pista (`person`).
 - `evaluate(solution)`: si la regla se cumple en una `Solution`.
 - `apply_to_model(model, variables)`: inyecta sus restricciones en el modelo
   CP-SAT. `to_literal(model, variables)` devuelve un booleano equivalente a la
@@ -66,8 +91,10 @@ no negativo (por ejemplo, `"target_difficulty": 12`). `generate-solution`
 no lo requiere. El maestro CP-SAT minimiza primero el error absoluto entre
 la suma de dificultades y ese target; despues minimiza el numero de pistas.
 El peso lexicografico es `len(pool) + 1`, no una constante que pueda dejar
-de funcionar con pools grandes. Todos salvo `victim` deben aparecer entre los
-`protagonists` de alguna pista elegida, tambien como personas referenciadas.
+de funcionar con pools grandes. Todos salvo `victim` deben ser el sujeto
+(`person`) de alguna pista elegida. Cada regla tiene un unico protagonista:
+la primera persona de la clausula; las personas referenciadas son `targets`
+y no cuentan para cobertura. Esto tambien se aplica a `any_of`.
 En esta fase se usa la victima como excepcion; no existe un asesino separado.
 
 El checker excluye la colocacion objetivo completa y busca una alternativa.
@@ -178,11 +205,11 @@ from murdoku_checker.apps.solution_creator import generate_solution, generate_sp
 from murdoku_checker.domain import GenerationConfig
 
 config = GenerationConfig(
-    rows=3,
-    columns=3,
+    rows=4,
+    columns=4,
     element_coverage_percent=50,
     element_type_count=3,
-    room_count=3,
+    room_count=4,
     seed=17,
 )
 specification = generate_specification(config)
@@ -319,8 +346,30 @@ especificacion de generacion.
 La primera etapa solo garantiza la capacidad numerica. La segunda busca una
 colocacion que respeta estas restricciones:
 
-- Exactamente `room_count` habitaciones no vacias. Cada una esta conectada por
-  lados, puede tener forma irregular y no tiene un minimo de cuatro celdas.
+- Exactamente `room_count` habitaciones no vacias, conectadas por lados.
+  Cada habitacion contiene una casilla semilla fijada antes de resolver:
+  la primera se sortea y las siguientes maximizan la distancia Manhattan
+  a la semilla mas cercana, con desempates aleatorios reproducibles.
+  Se permiten rectangulos y formas en L. Cada fila o columna intersecta
+  una habitacion en un unico tramo continuo: no se permiten huecos ni
+  formas en U. El area ocupa al menos el 75% del rectangulo envolvente
+  (`4 * area >= 3 * alto * ancho`) para limitar formas demasiado dispersas.
+  La proporcion entre alto y ancho de la envolvente sigue limitada a 1.5.
+- El solver minimiza la distancia a las semillas, con un pequeno coste
+  aleatorio por casilla y habitacion para variar las fronteras. Esto favorece
+  habitaciones locales sin exigir tamanos iguales. La busqueda dura como
+  maximo 10 segundos; puede devolver una solucion valida sin demostrar
+  optimalidad. Si no obtiene ninguna ni demuestra infactibilidad, informa
+  de un error, no de que el mapa sea imposible.
+- Como maximo una habitacion puede estar contenida en una sola fila o una
+  sola columna, contando ambas orientaciones juntas. Puede no haber ninguna.
+  Una habitacion de una celda cuenta una sola vez; las demas deben ocupar
+  al menos dos filas y dos columnas. Con el limite de proporcion, la unica
+  habitacion de una fila o columna permitida es una de 1x1. Puede no haber
+  ninguna. Estas restricciones solo se aplican al generar mapas, no al
+  verificar puzzles existentes. Pueden hacer infactibles configuraciones
+  posibles con otra distribucion de semillas; el generador lo informa sin
+  cambiar el numero de habitaciones. Otra semilla puede dar un mapa viable.
 - Cada celda pertenece a una habitacion y admite como maximo un mueble.
 - Cada ejemplar ocupa exactamente su tamaño; los de dos celdas son contiguos
   horizontal o verticalmente y estan dentro de la misma habitacion.

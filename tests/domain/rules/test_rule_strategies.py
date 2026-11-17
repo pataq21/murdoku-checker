@@ -116,16 +116,20 @@ def test_difficulty_grows_with_cognitive_cost() -> None:
     assert either.difficulty > in_room.difficulty + north.difficulty
 
 
-def test_protagonists_include_referenced_people() -> None:
+def test_only_the_clause_subject_is_a_protagonist() -> None:
     next_to = NextToRule(person="Alice", element=BOX)
     north = RelativePositionRule(person="Alice", direction=Direction.NORTH, element=BOB)
+    same_room = RoomRelationRule(
+        person="Alice", relation=RoomRelationKind.SAME, element=BOB
+    )
 
-    assert next_to.protagonists == {"Alice"}
-    assert north.protagonists == {"Alice", "Bob"}
-    assert AnyOfRule(person="Alice", conditions=(next_to, north)).protagonists == {
-        "Alice",
-        "Bob",
-    }
+    for rule in (
+        next_to, north, same_room,
+        AnyOfRule(person="Alice", conditions=(next_to, north)),
+    ):
+        assert rule.protagonists == {"Alice"}
+    assert north.targets == (BOB,)
+    assert same_room.targets == (BOB,)
 
 
 @pytest.mark.parametrize(

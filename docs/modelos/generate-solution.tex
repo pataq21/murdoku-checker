@@ -1,0 +1,290 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\newcommand{\B}{\{0,1\}}
+\title{Murdoku: modelo del caso de uso\\Generar una soluci\'on}
+\author{Documentaci\'on de la implementaci\'on}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Alcance y correspondencia con el c\'odigo}
+
+El caso de uso \texttt{generate-solution}, ejecutado mediante
+\texttt{murdoku-creator}, construye un mapa con habitaciones y muebles y
+una colocaci\'on completa de personas. El resultado es una soluci\'on
+objetivo $S^\star$, no un puzzle con pistas ni una prueba de unicidad.
+El modelo es de \emph{factibilidad}: no contiene funci\'on objetivo.
+
+La implementaci\'on se encuentra en:
+\begin{itemize}
+  \item \path{murdoku_checker\domain\generation_config.py}.
+  \item \path{murdoku_checker\apps\solution_creator\solution_creator.py}:
+        prepara la especificaci\'on y llama al modelo.
+  \item \path{murdoku_checker\apps\solution_creator\placement_model.py}:
+        construye y resuelve \texttt{PlacementModel}.
+\end{itemize}
+
+\section{Datos y preparaci\'on fuera de CP-SAT}
+
+Sean $H,W\geq 1$ las dimensiones de la cuadr\'icula, $K\geq 1$ el
+n\'umero de habitaciones, $T\geq 0$ el n\'umero de tipos de mueble y
+$\alpha\in[0,100]$ el porcentaje de cobertura. Se definen
+\[
+ N=HW,\qquad n=\min(H,W),\qquad
+ E=\operatorname{round}\left(N\frac{\alpha}{100}\right).
+\]
+El redondeo es el de Python: al entero m\'as cercano y, en un empate,
+al entero par. $E$ cuenta celdas cubiertas, no ejemplares.
+La configuraci\'on exige $K\leq N$, $T\leq E$ y, si $E>0$, $T>0$.
+Estas validaciones no garantizan la factibilidad del modelo completo.
+
+Antes de construir CP-SAT, \texttt{generate\_specification} fija para
+cada tipo $t$:
+\[
+ s_t\in\{1,2\},\qquad m_t\in\mathbb Z_{\geq 1},\qquad o_t\in\B,
+ \qquad \sum_{t=1}^{T}s_tm_t=E.
+\]
+$s_t$ es el tama\~no, $m_t$ el n\'umero de ejemplares y $o_t=1$
+indica que las personas pueden ocupar sus celdas. Estos valores
+\textbf{son datos del modelo}, no variables de decisi\'on.
+Si $T=0$, la especificaci\'on de muebles es vac\'ia.
+
+Se elige aleatoriamente qu\'e tipos tienen tama\~no dos, manteniendo
+el presupuesto y dejando un tipo de tama\~no uno si $E$ es impar.
+Cada tipo empieza con un ejemplar y se a\~naden ejemplares compatibles
+con el presupuesto restante. La ocupabilidad tambi\'en se sortea.
+La semilla controla estas decisiones.
+
+\section{Conjuntos e \'indices}
+
+\begin{description}
+  \item[$V=\{0,\ldots,N-1\}$] Celdas. Una celda de coordenadas $(i,j)$
+        tiene \'indice $c=iW+j$, con $0\leq i<H$, $0\leq j<W$.
+  \item[$\mathcal N(c)$] Vecinos ortogonales existentes de $c$:
+        distancia Manhattan uno, sin diagonales.
+  \item[$\mathcal K=\{0,\ldots,K-1\}$] Identificadores de habitaci\'on.
+  \item[$s_k\in V$] Semilla fija de la habitaci\'on $k$. Se sortea la
+        primera y se eligen las siguientes maximizando la distancia
+        Manhattan a la semilla m\'as cercana, con desempates aleatorios.
+  \item[$P=\{1,\ldots,n\}$] Personas. La v\'ictima es $v=n$.
+  \item[$\mathcal I$] Ejemplares individuales de mueble. Cada ejemplar
+        $i$ pertenece a un tipo $t(i)$.
+  \item[$\mathcal A_i$] Huellas permitidas del ejemplar $i$. Si
+        $s_{t(i)}=1$, todas las celdas individuales; si vale dos,
+        todos los pares ortogonales no ordenados.
+\end{description}
+
+\section{Variables de decisi\'on}
+
+\begin{align*}
+ r_c&\in\mathcal K
+     &&\text{habitaci\'on de la celda }c,\\
+ d_c&\in\{0,\ldots,N-1\}
+     &&\text{profundidad para demostrar conectividad},\\
+ a_{cu}&\in\B \quad(u\in\mathcal N(c))
+     &&\text{$c$ elige a $u$ como padre},\\
+ f_{iA}&\in\B \quad(A\in\mathcal A_i)
+     &&\text{el ejemplar $i$ ocupa la huella $A$},\\
+ b_c&\in\B
+     &&\text{la celda $c$ est\'a bloqueada},\\
+ y_p&\in\{0,\ldots,H-1\},\quad
+ x_p\in\{0,\ldots,W-1\}
+     &&\text{fila y columna de la persona }p,\\
+ q_p&\in V
+     &&\text{\'indice lineal de su celda},\\
+ \rho_p&\in\mathcal K
+     &&\text{habitaci\'on de la persona }p,\\
+ h_p&\in\B \quad(p\neq v)
+     &&\text{$p$ comparte habitaci\'on con la v\'ictima}.
+\end{align*}
+
+\section{Restricciones}
+
+\subsection{Partici\'on en habitaciones conexas}
+
+Cada habitaci\'on tiene una \'unica ra\'iz fijada antes de resolver:
+\begin{align}
+ r_{s_k}&=k,\quad d_{s_k}=0 &&\forall k\in\mathcal K.
+\end{align}
+Sea $S=\{s_k:k\in\mathcal K\}$. Cada celda no ra\'iz elige
+exactamente un vecino como padre:
+\begin{align}
+ \sum_{u\in\mathcal N(c)}a_{cu}&=1 &&\forall c\in V\setminus S,\\
+ a_{cu}=1&\Longrightarrow r_c=r_u,\ d_c>d_u
+     &&\forall c\in V\setminus S,\ u\in\mathcal N(c).
+\end{align}
+
+La profundidad decrece estrictamente al seguir padres, por lo que no
+puede haber ciclos. Toda cadena termina en una ra\'iz de la misma
+habitaci\'on. Como existe exactamente una ra\'iz por identificador,
+cada habitaci\'on es no vac\'ia y conexa. No se impone un tama\~no
+m\'inimo uniforme de cuatro celdas. La compacidad y la
+proporci\'on se imponen mediante las restricciones siguientes.
+
+\subsection{Como m\'aximo una habitaci\'on de una fila o columna}
+
+Se introducen booleanos de pertenencia $m_{kc}$ y presencia por
+coordenada $u_{ki}$, $w_{kj}$, todos con equivalencia exacta:
+\begin{align}
+ m_{kc}=1&\Longleftrightarrow r_c=k,\\
+ u_{ki}&=\max_{\substack{c\in V\\\operatorname{fila}(c)=i}}m_{kc},\\
+ w_{kj}&=\max_{\substack{c\in V\\\operatorname{columna}(c)=j}}m_{kc}.
+\end{align}
+As\'i, $\sum_i u_{ki}$ cuenta filas distintas ocupadas por $k$ y
+$\sum_j w_{kj}$ cuenta columnas distintas. Las habitaciones ya son
+no vac\'ias. Se definen tres booleanos por habitaci\'on:
+\begin{align}
+ s_k^{\mathrm{fila}}=1
+   &\Longleftrightarrow \sum_i u_{ki}=1,\\
+ s_k^{\mathrm{columna}}=1
+   &\Longleftrightarrow \sum_j w_{kj}=1,\\
+ t_k&=\max\{s_k^{\mathrm{fila}},s_k^{\mathrm{columna}}\}.
+\end{align}
+Finalmente se impone el l\'imite global
+\[
+ \boxed{\sum_{k\in\mathcal K}t_k\leq1.}
+\]
+Las dos orientaciones comparten el mismo l\'imite, no hay una
+excepci\'on por eje. Una habitaci\'on de una sola celda activa ambos
+$s_k$, pero cuenta una sola vez en $t_k$. Se permite que no exista
+ninguna habitaci\'on estrecha. Todas las dem\'as ocupan al menos
+dos filas y dos columnas.
+
+\subsection{Formas compactas y proporci\'on m\'axima de 1.5}
+
+Se introducen dimensiones enteras y un \'area por habitaci\'on:
+\begin{align}
+ H_k&=\sum_i u_{ki},&1\leq H_k&\leq H,\\
+ W_k&=\sum_j w_{kj},&1\leq W_k&\leq W,\\
+ A_k&=\sum_{c\in V}m_{kc},&1\leq A_k&\leq N.
+\end{align}
+La conectividad ya impuesta garantiza que las filas y columnas
+ocupadas son consecutivas. Por ello, $H_k$ y $W_k$ son las
+dimensiones del rect\'angulo envolvente. Se exige
+\[
+ \boxed{4A_k\geq3H_kW_k,\qquad
+        2H_k\leq3W_k,\qquad 2W_k\leq3H_k.}
+\]
+El producto auxiliar se implementa con
+\texttt{add\_multiplication\_equality}. La habitaci\'on ocupa al
+menos el 75\% de su envolvente, permitiendo formas en L.
+Adem\'as, para cada fila y columna, la secuencia de pertenencia
+$m_{kc}$ debe pertenecer al lenguaje $0^*1^*0^*$, mediante
+\texttt{add\_automaton}. As\'i se evitan huecos y formas en U.
+Las dos desigualdades equivalen exactamente a
+$\max(H_k,W_k)/\min(H_k,W_k)\leq3/2$, sin usar coma flotante.
+
+Se permiten, por ejemplo, $2\times3$ y $3\times4$, pero no
+$1\times2$ ni $2\times4$. El l\'imite de habitaciones estrechas
+se conserva: solo permite como m\'aximo una habitaci\'on $1\times1$,
+y puede no haber ninguna.
+El auxiliar \texttt{\_build\_room\_shape\_constraints} construye
+estas restricciones. Pueden hacer infactibles configuraciones
+posibles con otras semillas.
+No se cambia autom\'aticamente el mapa solicitado para evitarlas.
+
+\subsection{Preferencia espacial aleatoria}
+
+Con $\delta(c,s_k)$ la distancia Manhattan y
+$\epsilon_{kc}\in\{0,\ldots,9\}$ un coste aleatorio fijo, se minimiza
+\[
+ \sum_{k,c}(10\delta(c,s_k)+\epsilon_{kc})m_{kc}.
+\]
+La semilla de configuraci\'on controla tambi\'en estos costes.
+Se favorecen habitaciones cercanas a sus semillas sin imponer
+\'areas iguales. La b\'usqueda se limita a diez segundos y puede
+devolver una soluci\'on factible sin demostrar optimalidad.
+Un resultado inconcluso sin soluci\'on se comunica como error.
+
+\subsection{Colocaci\'on de los muebles}
+
+Cada ejemplar elige una \'unica huella y dos muebles no se solapan:
+\begin{align}
+ \sum_{A\in\mathcal A_i}f_{iA}&=1 &&\forall i\in\mathcal I,\\
+ \sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\c\in A}}f_{iA}
+     &\leq 1 &&\forall c\in V.
+\end{align}
+Un mueble de dos celdas no puede atravesar una pared:
+\[
+ f_{i,\{c,u\}}=1\Longrightarrow r_c=r_u.
+\]
+El bloqueo se calcula mediante
+\[
+ b_c=
+ \sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\
+                   c\in A,\ o_{t(i)}=0}}f_{iA}
+ \qquad\forall c\in V.
+\]
+La restricci\'on de no solapamiento hace que la suma sea booleana.
+Las celdas sin muebles no est\'an bloqueadas. El presupuesto $E$ se
+cumple por los tama\~nos y cantidades fijados, sin necesidad de una
+restricci\'on adicional sobre el porcentaje.
+
+\subsection{Colocaci\'on de las personas}
+
+\begin{align}
+ q_p&=Wy_p+x_p &&\forall p\in P,\\
+ b_{q_p}&=0 &&\forall p\in P,\\
+ \operatorname{AllDifferent}\bigl((y_p)_{p\in P}\bigr),&\\
+ \operatorname{AllDifferent}\bigl((x_p)_{p\in P}\bigr).&
+\end{align}
+La lectura $b_{q_p}=0$ es una restricci\'on \texttt{AddElement}.
+No se repiten filas ni columnas entre personas. En particular, tampoco
+pueden compartir celda. Una persona s\'i puede coincidir con un mueble
+ocupable.
+
+\subsection{Habitaci\'on de la v\'ictima}
+
+Se obtiene la habitaci\'on de cada persona mediante otra lectura
+indexada y se exige exactamente un acompa\~nante de la v\'ictima:
+\begin{align}
+ \rho_p&=r_{q_p} &&\forall p\in P,\\
+ h_p=1&\Longleftrightarrow \rho_p=\rho_v &&\forall p\neq v,\\
+ \sum_{p\in P\setminus\{v\}}h_p&=1.
+\end{align}
+Por tanto, la habitaci\'on de la v\'ictima contiene exactamente dos
+personas. No se identifica una variable independiente de asesino.
+Si $n=1$, la suma es vac\'ia y el modelo es infactible, aunque la
+configuraci\'on haya superado las validaciones iniciales.
+
+\section{Resoluci\'on y extracci\'on}
+
+CP-SAT usa un trabajador, \texttt{PORTFOLIO\_SEARCH},
+\texttt{randomize\_search=True} y una semilla de solver derivada de la
+semilla de configuraci\'on. La aleatorizaci\'on de la b\'usqueda no
+equivale a muestrear uniformemente todas las soluciones factibles.
+
+\begin{description}
+  \item[\texttt{FEASIBLE} o \texttt{OPTIMAL}:] Se extrae una colocaci\'on
+        factible, el mapa y cada ejemplar de mueble. Al no haber
+        objetivo, \texttt{OPTIMAL} no indica una mejor dificultad.
+  \item[\texttt{INFEASIBLE}:] La app devuelve \texttt{None}; el comando
+        informa del fallo. No cambia cantidades, tama\~nos ni ocupabilidad
+        ni vuelve a sortear la especificaci\'on.
+  \item[Otro estado:] Se produce \texttt{RuntimeError}; no se presenta
+        como una demostraci\'on de imposibilidad.
+\end{description}
+
+El resultado contiene \texttt{GeneratedSolution}: especificaci\'on,
+mapa, posiciones, v\'ictima y muebles individuales. Los nombres se
+serializan como \texttt{person\_1}, etc., y
+\texttt{room\_1}, etc. Las coordenadas internas empiezan en cero.
+El registro conserva la configuraci\'on efectiva y la semilla para
+reproducir la ejecuci\'on en un entorno compatible.
+
+\section{L\'imites de la garant\'ia}
+
+Este caso de uso no selecciona pistas, no minimiza dificultad ni
+demuestra unicidad. Las habitaciones, los muebles y las personas se
+deciden conjuntamente. Sus variables auxiliares de conectividad no
+forman parte del puzzle que se entrega al jugador. La verificaci\'on
+posterior usa un mapa fijo y un modelo de colocaci\'on distinto,
+descrito en el documento \texttt{verify-puzzle.tex}.
+
+\end{document}
