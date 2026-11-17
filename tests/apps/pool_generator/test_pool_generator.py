@@ -33,6 +33,7 @@ from murdoku_checker.domain import (
     Rules,
     Solution,
 )
+from murdoku_checker.domain.generation_config import ALL_RULE_TYPES, RuleType
 
 
 @pytest.fixture(scope="module")
@@ -67,6 +68,48 @@ def pool(solution: Solution) -> dict[str, list[Rule]]:
 
 def flatten_pool(pool: dict[str, list[Rule]]) -> list[Rule]:
     return [rule for rules in pool.values() for rule in rules]
+
+
+@pytest.mark.parametrize("rule_type", ALL_RULE_TYPES)
+def test_selecting_a_single_type_excludes_other_types(
+    solution: Solution, candidates: list[Rule], pool: dict[str, list[Rule]],
+    rule_type: RuleType,
+) -> None:
+    expected_candidates = [
+        rule for rule in candidates
+        if rule.type == rule_type and not isinstance(rule, AnyOfRule)
+    ]
+    assert list(iter_candidate_rules(solution, rule_types=(rule_type,))) == expected_candidates
+    assert generate_pool(solution, rule_types=(rule_type,)) == {
+        person: [
+            rule for rule in rules
+            if rule.type == rule_type and not isinstance(rule, AnyOfRule)
+        ]
+        for person, rules in pool.items()
+    }
+
+
+def test_disjunctions_only_use_enabled_simple_types(
+    solution: Solution, candidates: list[Rule], pool: dict[str, list[Rule]],
+) -> None:
+    enabled: tuple[RuleType, ...] = ("in_coordinate", "any_of")
+
+    def is_enabled(rule: Rule) -> bool:
+        if isinstance(rule, AnyOfRule):
+            return all(condition.type == "in_coordinate" for condition in rule.conditions)
+        return rule.type == "in_coordinate"
+
+    result = list(iter_candidate_rules(solution, rule_types=enabled))
+    assert result == [rule for rule in candidates if is_enabled(rule)]
+    assert any(isinstance(rule, AnyOfRule) for rule in result)
+    assert generate_pool(solution, victim="Bob", rule_types=enabled) == {
+        "Alice": [rule for rule in pool["Alice"] if is_enabled(rule)]
+    }
+
+
+def test_empty_rule_types_disable_all_clues(solution: Solution) -> None:
+    assert list(iter_candidate_rules(solution, rule_types=())) == []
+    assert generate_pool(solution, rule_types=()) == {"Alice": [], "Bob": []}
 
 
 def test_candidates_cover_all_simple_families_and_unique_same_person_pairs(

@@ -82,6 +82,8 @@ def test_new_puzzle_reports_executed_generation_phases(
         phases.append("output")
     if output_format != "text":
         phases.extend(["generate_pool", "log_pool_summary"])
+    if output_format == "json":
+        phases.append("output")
     phases.append("total")
     assert [line.strip().split(":")[0] for line in summary.splitlines()] == phases
     assert all(

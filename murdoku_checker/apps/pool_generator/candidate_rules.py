@@ -19,6 +19,7 @@ from murdoku_checker.domain import (
     Rule,
     Solution,
 )
+from murdoku_checker.domain.generation_config import ALL_RULE_TYPES, RuleType
 
 
 def _iter_simple_rules(solution: Solution, person: str) -> Iterator[Rule]:
@@ -87,13 +88,17 @@ def _iter_simple_rules(solution: Solution, person: str) -> Iterator[Rule]:
 
 
 def iter_candidate_rules(
-    solution: Solution, *, victim: str | None = None
+    solution: Solution,
+    *,
+    victim: str | None = None,
+    rule_types: tuple[RuleType, ...] = ALL_RULE_TYPES,
 ) -> Iterator[Rule]:
     """Enumerate simple clues and unordered, unnested pairs per person.
 
     Targets and exact offsets come from the map. Truth is deliberately not
     checked here, so disjunctions can contain a false alternative.
     The victim is skipped as protagonist, but remains available as a target.
+    Only enabled simple types are used, including within enabled disjunctions.
     """
     if victim is not None and victim not in solution.placements:
         raise ValueError(f"Unknown victim: {victim}")
@@ -103,7 +108,11 @@ def iter_candidate_rules(
     for person in people:
         if person == victim:
             continue
-        simple = tuple(_iter_simple_rules(solution, person))
+        simple = tuple(
+            rule for rule in _iter_simple_rules(solution, person)
+            if rule.type in rule_types
+        )
         yield from simple
-        for first, second in combinations(simple, 2):
-            yield AnyOfRule(person=person, conditions=(first, second))
+        if "any_of" in rule_types:
+            for first, second in combinations(simple, 2):
+                yield AnyOfRule(person=person, conditions=(first, second))

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from murdoku_checker.domain import GenerationConfig
 from murdoku_checker.mains.main_generate_solution import main
 
 
@@ -28,7 +29,7 @@ def test_main_prints_repeatable_solution_json(
     assert first.err.startswith("Phase timings:\n")
     assert "  generate_solution:" in first.err
     assert "  output:" in first.err
-    assert data["config"] == config
+    assert data["config"] == GenerationConfig.model_validate(config).model_dump(mode="json")
     assert data["person_count"] == 3
     assert data["element_cell_count"] == 4
     assert len(data["elements"]) == 3

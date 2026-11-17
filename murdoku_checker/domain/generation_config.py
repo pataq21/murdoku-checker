@@ -1,6 +1,27 @@
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+RuleType = Literal[
+    "in",
+    "next_to",
+    "not_next_to",
+    "in_coordinate",
+    "room_relation",
+    "relative_position",
+    "any_of",
+]
+
+ALL_RULE_TYPES: tuple[RuleType, ...] = (
+    "in",
+    "next_to",
+    "not_next_to",
+    "in_coordinate",
+    "room_relation",
+    "relative_position",
+    "any_of",
+)
 
 
 class GenerationConfig(BaseModel):
@@ -12,6 +33,7 @@ class GenerationConfig(BaseModel):
     element_type_count: int = Field(ge=0)
     room_count: int = Field(ge=1)
     seed: int | None = None
+    rule_types: tuple[RuleType, ...] = ALL_RULE_TYPES
 
     @property
     def cell_count(self) -> int:

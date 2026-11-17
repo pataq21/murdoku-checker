@@ -10,6 +10,7 @@ from murdoku_checker.apps.pool_generator import generate_pool
 from murdoku_checker.domain import (
     AnyOfRule,
     CoordinateAxis,
+    GenerationConfig,
     InCoordinateRule,
     Map,
     Rules,
@@ -27,6 +28,56 @@ def config_path(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+@pytest.mark.parametrize("rule_types", [["in_coordinate"], []])
+def test_main_uses_rule_types_from_the_input(
+    config_path: Path, capsys: pytest.CaptureFixture[str], rule_types: list[str]
+) -> None:
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["rule_types"] = rule_types
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    parsed = GenerationConfig.model_validate_json(config_path.read_bytes())
+    assert json.loads(parsed.model_dump_json())["rule_types"] == rule_types
+
+    with patch(
+        "murdoku_checker.mains.main_generate_new_puzzle.generate_pool",
+        wraps=generate_pool,
+    ) as build_pool:
+        assert main([str(config_path)]) == 0
+
+    assert build_pool.call_args.kwargs["rule_types"] == tuple(rule_types)
+    solution = build_pool.call_args.args[0]
+    victim = build_pool.call_args.kwargs["victim"]
+    expected = generate_pool(solution, victim=victim, rule_types=parsed.rule_types)
+    assert all(rule.type in rule_types for rules in expected.values() for rule in rules)
+    captured = capsys.readouterr()
+    assert f"total={len(next(iter(expected.values())))}" in captured.err
+    assert "any_of:" not in captured.err
+    data = json.loads(captured.out)
+    assert data["config"]["rule_types"] == rule_types
+    assert Rules.model_validate({"rules": data["pool"]}).rules == tuple(
+        rule for rules in expected.values() for rule in rules
+    )
+
+
+@pytest.mark.parametrize("rule_types", [["unknown"], "in", None, [1]])
+def test_main_rejects_invalid_rule_types_before_generation(
+    config_path: Path, capsys: pytest.CaptureFixture[str], rule_types: object
+) -> None:
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["rule_types"] = rule_types
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    with patch(
+        "murdoku_checker.mains.main_generate_new_puzzle.generate_specification"
+    ) as generate:
+        assert main([str(config_path)]) == 1
+    generate.assert_not_called()
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "Error loading generation config" in captured.err
+    assert "rule_types" in captured.err
 
 
 def test_main_generates_solution_and_its_complete_pool(
@@ -50,7 +101,11 @@ def test_main_generates_solution_and_its_complete_pool(
     assert solution_data["victim"] in solution.placements
     assert pool
     assert all(rule.evaluate(solution) for rule in pool)
-    assert list(pool) == generate_pool(solution)
+    assert all(rule.person != solution_data["victim"] for rule in pool)
+    expected_pool = generate_pool(solution, victim=solution_data["victim"])
+    assert list(pool) == [
+        rule for rules in expected_pool.values() for rule in rules
+    ]
 
 
 @pytest.mark.parametrize("output_format", ["json", "html"])
@@ -61,19 +116,28 @@ def test_main_logs_rule_totals_per_person_and_type(
     column = InCoordinateRule(person="person_1", axis=CoordinateAxis.COLUMN, value=0)
     pool = {
         "person_2": [],
-        "person_1": [row, column, AnyOfRule(person="person_1", conditions=(row, column))],
+        "person_1": [
+            row,
+            column,
+            AnyOfRule(person="person_1", conditions=(row, column)),
+        ],
     }
     with patch(
         "murdoku_checker.mains.main_generate_new_puzzle.generate_pool",
         return_value=pool,
     ):
-        assert main(
-            [
-                str(config_path),
-                "--format", output_format,
-                "--output", str(config_path.parent / "solution.html"),
-            ]
-        ) == 0
+        assert (
+            main(
+                [
+                    str(config_path),
+                    "--format",
+                    output_format,
+                    "--output",
+                    str(config_path.parent / "solution.html"),
+                ]
+            )
+            == 0
+        )
 
     captured = capsys.readouterr()
     assert (
@@ -103,7 +167,8 @@ def test_main_excludes_the_generated_victim_from_the_pool(
     assert f"  {victim}: total=" not in captured.err
     assert all(
         f"  {person}: total=" in captured.err
-        for person in solution.placements if person != victim
+        for person in solution.placements
+        if person != victim
     )
 
 
@@ -122,7 +187,9 @@ def test_main_reports_errors_without_partial_output(
         error = (
             ValueError("invalid solution")
             if failure == "pool"
-            else RuntimeError("solver failed") if failure == "solver" else None
+            else RuntimeError("solver failed")
+            if failure == "solver"
+            else None
         )
         with patch(target, return_value=None, side_effect=error):
             code = main([str(config_path)])

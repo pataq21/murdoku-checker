@@ -1,4 +1,5 @@
 import argparse
+import json
 import sys
 from collections import Counter
 from collections.abc import Sequence
@@ -11,7 +12,7 @@ from murdoku_checker.apps.solution_creator import (
     generate_solution,
     generate_specification,
 )
-from murdoku_checker.domain import GenerationConfig
+from murdoku_checker.domain import GenerationConfig, Rules
 from murdoku_checker.mains.phase_timings import PhaseTimings, log_run_timings
 from murdoku_checker.mains.solution_display import format_generated_solution
 from murdoku_checker.mains.solution_display_html import format_solution_html
@@ -71,13 +72,15 @@ def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
         )
         return 1
     if args.format == "text":
-        print(format_generated_solution(generated))
+        with timings.phase("output"):
+            print(format_generated_solution(generated))
         return 0
     if args.format == "html":
         try:
-            content = format_solution_html(generated)
-            args.output.write_text(content, encoding="utf-8")
-            print(f"HTML solution written to '{args.output.resolve()}'")
+            with timings.phase("output"):
+                content = format_solution_html(generated)
+                args.output.write_text(content, encoding="utf-8")
+                print(f"HTML solution written to '{args.output.resolve()}'")
         except OSError as error:
             print(
                 f"Error writing HTML solution '{args.output}': {error}", file=sys.stderr
@@ -85,16 +88,52 @@ def _run(argv: Sequence[str] | None, timings: PhaseTimings) -> int:
             return 1
     try:
         with timings.phase("generate_pool"):
-            pool = generate_pool(generated.solution, victim=generated.victim)
+            pool = generate_pool(
+                generated.solution,
+                victim=generated.victim,
+                rule_types=config.rule_types,
+            )
     except ValueError as error:
         print(f"Error generating clue pool: {error}", file=sys.stderr)
         return 1
 
-    print("Generated rules per person:", file=sys.stderr)
-    for person, rules in sorted(pool.items()):
-        print(f"  {person}: total={len(rules)}", file=sys.stderr)
-        for rule_type, count in sorted(Counter(rule.type for rule in rules).items()):
-            print(f"    {rule_type}: {count}", file=sys.stderr)
+    with timings.phase("log_pool_summary"):
+        print("Generated rules per person:", file=sys.stderr)
+        for person, rules in sorted(pool.items()):
+            print(f"  {person}: total={len(rules)}", file=sys.stderr)
+            for rule_type, count in sorted(Counter(rule.type for rule in rules).items()):
+                print(f"    {rule_type}: {count}", file=sys.stderr)
+
+    if args.format == "json":
+        with timings.phase("output"):
+            print(
+                json.dumps(
+                    {
+                        "config": config.model_dump(mode="json"),
+                        "elements": [
+                            {
+                                "element": item.element.model_dump(mode="json"),
+                                "size": item.size,
+                                "count": item.count,
+                            }
+                            for item in specification.elements
+                        ],
+                        "solution": {
+                            "map": generated.solution.map.model_dump(mode="json"),
+                            "placements": dict(generated.solution.placements),
+                            "victim": generated.victim,
+                            "furniture": [
+                                {"element": item.element, "cells": item.cells}
+                                for item in generated.furniture
+                            ],
+                        },
+                        "pool": Rules(
+                            rules=tuple(rule for rules in pool.values() for rule in rules)
+                        ).model_dump(mode="json")["rules"],
+                    },
+                    indent=2,
+                )
+            )
 
     return 0
 

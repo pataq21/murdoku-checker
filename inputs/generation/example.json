@@ -4,5 +4,14 @@
     "element_coverage_percent": 20,
     "element_type_count": 2,
     "room_count": 3,
-    "seed": 2342342
+    "seed": 2342342,
+    "rule_types": [
+        "in",
+        "next_to",
+        "not_next_to",
+        "in_coordinate",
+        "room_relation",
+        "relative_position",
+        "any_of"
+    ]
 }

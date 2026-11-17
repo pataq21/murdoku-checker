@@ -51,6 +51,7 @@ Tambien se puede ejecutar con
 `uv run python -m murdoku_checker.mains.main_generate_new_puzzle inputs\generation\example.json`.
 La salida JSON incluye `config`, `elements`, `solution` (mapa, posiciones,
 victima y muebles) y `pool`, una lista de reglas con el formato de `rules.json`.
+La lista agrupa las pistas por persona y no incluye pistas propias de la victima.
 `--solver-logs` envia los logs a stderr. Los errores se indican en stderr con
 codigo 1 y sin salida JSON parcial. El pool no es aun un puzle terminado:
 la seleccion de pistas y la comprobacion de unicidad son etapas posteriores.
@@ -60,6 +61,17 @@ el total de reglas de cada persona y un desglose por `rule.type`, antes del
 resumen de tiempos. Cada regla `any_of` cuenta una sola vez; sus condiciones
 internas no se cuentan como reglas adicionales. Las personas sin pistas
 aparecen con `total=0`.
+
+El mismo JSON de entrada acepta `rule_types`, una lista opcional de tipos de
+pistas que se generaran, por ejemplo `"rule_types": ["in", "in_coordinate", "any_of"]`.
+Los valores admitidos son `in`, `next_to`, `not_next_to`, `in_coordinate`,
+`room_relation`, `relative_position` y `any_of`. Si se omite, se habilitan todos;
+una lista vacia desactiva todas las pistas. Los tipos desconocidos se rechazan
+al cargar la configuracion. `any_of` solo combina reglas simples de los tipos
+habilitados: seleccionarlo sin ningun tipo simple no produce pistas.
+Esta opcion no modifica la generacion del tablero ni de la solucion.
+La configuracion serializada incluye la lista efectiva de tipos, tambien cuando
+se usan los valores por defecto.
 
 ## Generacion de soluciones aleatorias (solution_creator)
 
@@ -173,6 +185,8 @@ terminar, con segundos por fase y un total. Se miden la carga y validacion,
 la generacion de la especificacion, `generate_solution`, `generate_pool` o
 `check_solutions`, segun el comando, y la salida. Solo aparecen las fases
 ejecutadas; si una falla, se incluye el tiempo transcurrido hasta el fallo.
+En `murdoku-generate`, `log_pool_summary` mide el resumen de pistas en stderr;
+`output` mide la salida del formato elegido, incluido JSON.
 El total incluye tambien el procesamiento de argumentos. Los tiempos usan
 un reloj monotono y no alteran stdout ni los archivos generados.
 
@@ -243,7 +257,9 @@ from murdoku_checker.apps.pool_generator import generate_pool
 from murdoku_checker.domain import Rules
 
 # generated es el resultado no nulo de generate_solution(specification).
-pool = generate_pool(generated.solution, victim=generated.victim)
+pool = generate_pool(
+    generated.solution, victim=generated.victim, rule_types=config.rule_types
+)
 for person, rules in pool.items():
     for rule in rules:
         print(person, rule.description, rule.difficulty, sorted(rule.protagonists))
@@ -254,7 +270,9 @@ rules_json = Rules(
 ```
 
 `iter_candidate_rules(solution)` permite recorrer los candidatos antes de
-filtrar. El universo se limita a las personas, habitaciones y features presentes
+filtrar y acepta el mismo argumento opcional `rule_types` (una tupla en Python).
+Si se omite, ambas funciones generan todos los tipos.
+El universo se limita a las personas, habitaciones y features presentes
 en el mapa objetivo y comprende:
 
 - `in`: cada persona con cada habitacion o feature, con y sin `is_unique`.
