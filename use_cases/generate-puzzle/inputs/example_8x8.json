@@ -1,18 +1,18 @@
 {
     "rows": 8,
     "columns": 8,
-    "element_coverage_percent": 40,
-    "element_type_count": 5,
-    "room_count": 5,
+    "element_coverage_percent": 35,
+    "element_type_count": 6,
+    "room_count": 6,
     "seed": 3,
     "person_names": [
         "Amaury",
         "Javi",
-        "Carlos",
-        "Fer",
         "Cristina",
-        "Carmen",
-        "Antonio",
+        "Fer",
+        "Manu",
+        "Paula",
+        "Dani",
         "Laura"
     ],
     "elements": {
@@ -28,6 +28,10 @@
             "size": 2,
             "is_occupiable": true
         },
+        "Computer": {
+            "size": 1,
+            "is_occupiable": false
+        },
         "Montse": {
             "size": 1,
             "is_occupiable": false
@@ -37,7 +41,7 @@
             "is_occupiable": false
         }
     },
-    "target_difficulty": 24,
+    "target_difficulty": 18,
     "rule_types": [
         "in",
         "next_to",

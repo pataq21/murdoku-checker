@@ -1,0 +1,961 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,babel}
+
+\definecolor{ink}{HTML}{1C2732}
+\definecolor{teal}{HTML}{4C31FF}
+\definecolor{paper}{HTML}{FFFFFF}
+\colorlet{muted}{ink!70!paper}
+\definecolor{amber}{HTML}{CCFF90}
+\definecolor{berry}{HTML}{CCFF90}
+\colorlet{kitchen}{amber!40!paper}
+\colorlet{hall}{amber!65!paper}
+\colorlet{study}{teal!8!paper}
+\colorlet{lounge}{teal!16!paper}
+
+\setbeamercolor{normal text}{fg=ink,bg=paper}
+\setbeamercolor{structure}{fg=teal}
+\setbeamercolor{frametitle}{fg=ink}
+\setbeamercolor{title}{fg=ink}
+\setbeamercolor{subtitle}{fg=teal}
+\setbeamercolor{block title}{fg=white,bg=teal}
+\setbeamercolor{block body}{fg=ink,bg=teal!8!white}
+\setbeamercolor{block title alerted}{fg=ink,bg=berry}
+\setbeamercolor{block body alerted}{fg=ink,bg=berry!35!paper}
+\setbeamercolor{block title example}{fg=white,bg=muted}
+\setbeamercolor{block body example}{fg=ink,bg=muted!7!white}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+    \begin{beamercolorbox}[wd=.79\paperwidth,ht=3ex,dp=1.5ex,leftskip=1em]{normal text}
+      \scriptsize\color{muted}Murdoku%
+      \ifnum\value{section}>0\relax
+        \enspace/\enspace\insertsectionhead
+      \fi
+      \ifnum\value{subsection}>0\relax
+        \enspace/\enspace\insertsubsectionhead
+      \fi
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.21\paperwidth,ht=3ex,dp=1.5ex,rightskip=1em plus1fil]{normal text}
+      \hfill\scriptsize\insertframenumber\,/\,\inserttotalframenumber
+    \end{beamercolorbox}}}
+\setbeamersize{text margin left=8mm,text margin right=8mm}
+\setlength{\emergencystretch}{1em}
+
+\tikzset{
+  stage/.style={draw=teal,fill=white,rounded corners=3pt,
+    minimum height=12mm,text width=26mm,align=center,font=\small},
+  flow/.style={-{Stealth[length=2mm]},thick,draw=teal},
+  furniture/.style={draw=teal,fill=white!75!teal,rounded corners=2pt,
+    font=\tiny,inner sep=2pt},
+  person/.style={circle,fill=ink,text=white,font=\tiny\bfseries,
+    inner sep=2pt,minimum size=4.5mm},
+}
+
+\newcommand{\examplegrid}{%
+  \draw[step=1,ink!35] (0,0) grid (4,4);
+  \draw[ink,thick] (0,0) rectangle (4,4);
+}
+
+% 0: tablero vacio de personas; 1: objetivo; 2: alternativa ilustrativa.
+\newcommand{\murdokuboard}[1]{%
+  \begin{tikzpicture}[x=.85cm,y=-.85cm]
+    \fill[kitchen] (0,0) rectangle (2,2);
+    \fill[hall] (2,0) rectangle (4,2);
+    \fill[study] (0,2) rectangle (2,4);
+    \fill[lounge] (2,2) rectangle (4,4);
+    \draw[step=1,ink!18,thin] (0,0) grid (4,4);
+    \draw[ink,very thick] (0,0) rectangle (4,4);
+    \draw[ink,very thick] (2,0) -- (2,4);
+    \draw[ink,very thick] (0,2) -- (4,2);
+    \foreach \i in {0,1,2,3}{
+      \node[font=\scriptsize,text=muted] at (\i+.5,-.3) {\i};
+      \node[font=\scriptsize,text=muted] at (-.3,\i+.5) {\i};
+    }
+    \node[anchor=north west,font=\tiny,text=muted] at (.05,.04) {Cocina};
+    \node[anchor=north west,font=\tiny,text=muted] at (2.05,.04) {Entrada};
+    \node[anchor=north west,font=\tiny,text=muted] at (.05,2.04) {Estudio};
+    \node[anchor=north west,font=\tiny,text=muted] at (2.05,2.04) {Sal\'on};
+    \node[furniture,draw=amber,dashed,fill=hall] at (1.5,.45) {Mesa};
+    \node[furniture] at (1.5,1.4) {Silla};
+    \draw[teal,fill=white!75!teal,rounded corners=2pt]
+      (2.1,2.25) rectangle (3.9,2.7);
+    \node[font=\tiny] at (3,2.45) {Sof\'a};
+    \node[furniture,draw=amber,dashed,fill=hall] at (.5,3.4) {Armario};
+    \ifnum#1=1
+      \node[person] at (.65,.72) {A};
+      \node[person] at (1.65,1.72) {B};
+    \fi
+    \ifnum#1=2
+      \node[person] at (1.65,1.72) {A};
+      \node[person] at (.65,.72) {B};
+    \fi
+    \ifnum#1>0
+      \node[person] at (2.65,2.78) {C};
+      \node[person,fill=berry,text=ink] at (3.65,3.72) {D};
+    \fi
+  \end{tikzpicture}%
+}
+
+\title{Murdoku Creator}
+\subtitle{Parte 1: Creaci\'on del tablero y pool de restricciones}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \vspace{8mm}
+  {\small\color{teal}\bfseries OPTIMIZACIÓN}
+  \vspace{4mm}
+  \titlepage
+
+\end{frame}
+
+\begin{frame}{\'Indice}
+  \small
+  \tableofcontents[sectionstyle=show/show,subsectionstyle=show/show/show]
+\end{frame}
+
+\section{Qu\'e es un Murdoku}
+\begin{frame}{Ejemplo de Murdoku}
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{murdoku_example.png}
+        \label{fig:placeholder}
+    \end{figure}
+\end{frame}
+\begin{frame}{Un sudoku de personas, habitaciones y pistas}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.57\textwidth}
+      \begin{itemize}
+        \setlength{\itemsep}{3mm}
+        \item Un tablero dividido en \textbf{habitaciones}.
+        \item Muebles que permiten o impiden ocupar sus celdas.
+        \item Personas cuyas posiciones hay que deducir.
+        \item Pistas espaciales: pertenencia, cercan\'ia y posici\'on relativa.
+      \end{itemize}
+
+    \end{column}
+    \begin{column}{.39\textwidth}
+      \centering
+      \murdokuboard{0}
+
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Las reglas b\'asicas del tablero generado}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.4\textwidth}
+      \centering
+      \murdokuboard{1}
+      \par\smallskip
+      \small A: Alicia;\ B: Bruno;\ C: Carla;\\
+      \textcolor{berry}{D: Diana, la v\'ictima.}
+    \end{column}
+    \begin{column}{.56\textwidth}
+      \begin{enumerate}
+        \setlength{\itemsep}{3mm}
+        \item Una posici\'on por persona.
+        \item Solo una persona por fila y columna.
+        \item Nadie ocupa un mueble bloqueado.
+        \item La v\'ictima comparte
+          habitaci\'on con \textbf{exactamente otra persona}.
+      \end{enumerate}
+
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Reglas espec\'ificas}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.4\textwidth}
+      \centering
+      \murdokuboard{1}
+    \end{column}
+    \begin{column}{.56\textwidth}
+      \begin{itemize}
+        \setlength{\itemsep}{6mm}
+        \item Alicia: Se encuentra en la cocina
+        \item Bruno: Es el único en una silla
+        \item Carla: Se encuentra al sur de Bruno
+        \item Diana: Es la víctima
+
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Qu\'e hace divertido un Murdoku}
+  \begin{block}{Una \'unica soluci\'on}
+    El reto consiste en encontrar la \'unica colocaci\'on posible.
+    Si hay varias, puede resultar demasiado f\'acil encontrar una respuesta.
+  \end{block}
+  \vspace{3mm}
+  \begin{block}{Pistas que invitan a deducir}
+    Las reglas no revelan directamente las posiciones de las personas:
+    hay que combinarlas para descubrir d\'onde est\'a cada una.
+  \end{block}
+\end{frame}
+
+\section{Arquitectura}
+
+\begin{frame}{Arquitectura: tres responsabilidades}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.31\textwidth}
+      \begin{block}{\texttt{mains}}
+        \small Entradas y salidas: comandos, carga de datos,
+        formatos y registro de ejecuciones.
+      \end{block}
+    \end{column}
+    \begin{column}{.32\textwidth}
+      \begin{block}{\texttt{apps}}
+        \small Casos de uso: crear una soluci\'on, generar pistas,
+        construir y verificar el puzzle.
+      \end{block}
+    \end{column}
+    \begin{column}{.31\textwidth}
+      \begin{block}{\texttt{domain}}
+        \small Entidades compartidas: mapa, personas, elementos,
+        soluciones y reglas.
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{4mm}
+  \begin{exampleblock}{Separar responsabilidades}
+    La entrada y la presentaci\'on se separan de los casos de uso;
+    estos trabajan con una representaci\'on com\'un del problema.
+  \end{exampleblock}
+  \small OR-Tools aparece tanto en las aplicaciones como en la
+  implementaci\'on de las reglas del dominio.
+\end{frame}
+
+\begin{frame}{Estandarizar un puzzle: una entrada com\'un}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.54\textwidth}
+      \begin{block}{\texttt{MurdokuInput}}
+        \begin{itemize}
+          \item \textbf{Mapa:} celdas, habitaciones y elementos.
+          \item \textbf{Cat\'alogo:} tipos de elementos y ocupabilidad.
+          \item \textbf{Personas:} personajes del puzzle.
+          \item \textbf{Reglas:} pistas con tipos y referencias.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{.42\textwidth}
+      \begin{exampleblock}{Un mismo lenguaje}
+        \begin{itemize}
+          \item Leer un puzzle desde archivos.
+          \item Construir uno durante la generaci\'on.
+          \item Pasarlo al checker para resolverlo.
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \small La validaci\'on comprueba, entre otras cosas, que las personas,
+  habitaciones y elementos referenciados existan.
+\end{frame}
+
+\begin{frame}{Estandarizar las pistas como reglas}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.46\textwidth}
+      \begin{block}{Ejemplo}
+        \textbf{Pista:} Alicia est\'a en la cocina.
+        \begin{itemize}
+          \item Sujeto: Alicia.
+          \item Tipo: \texttt{in}.
+          \item Objetivo: habitaci\'on cocina.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{.5\textwidth}
+      \begin{block}{Contrato de \texttt{BaseRule}}
+        \begin{itemize}
+          \item Describir la pista y asignar dificultad.
+          \item Evaluarla sobre una soluci\'on.
+          \item Expresarla como restricci\'on CP-SAT.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \vspace{2mm}
+  \small Cada tipo implementa el mismo contrato: as\'i se pueden
+  evaluar y seleccionar pistas distintas sin tratar cada una
+  como un caso aislado.
+\end{frame}
+
+\begin{frame}{De la representaci\'on al caso de uso}
+  \begin{enumerate}
+    \setlength{\itemsep}{3mm}
+    \item \textbf{Modelar:} convertir el tablero y las pistas
+      en entidades y reglas verificables.
+    \item \textbf{Operar:} las aplicaciones crean soluciones,
+      generan pistas o comprueban colocaciones.
+    \item \textbf{Entregar:} los puntos de entrada presentan el
+      resultado y registran la ejecuci\'on.
+  \end{enumerate}
+  \begin{exampleblock}{Por qu\'e importa}
+    La misma estructura de puzzle sirve para conectar generaci\'on
+    y verificaci\'on; la l\'ogica de cada pista se reutiliza al evaluar
+    soluciones y al construir el modelo.
+  \end{exampleblock}
+\end{frame}
+
+\section{Enfoque}
+
+\begin{frame}{Enfoque. Tres modelos}
+  \begin{center}
+    \begin{tikzpicture}[node distance=6mm]
+      \node[stage] (spatial) {Construcción\\de solución};
+      \node[stage,right=of spatial] (pool) {Pool de\\restricciones};
+      \node[stage,right=of pool] (master) {Maestro de\\selecci\'on};
+      \node[stage,right=of master] (checker) {Checker de\\unicidad};
+      \draw[flow] (spatial) -- (pool);
+      \draw[flow] (pool) -- (master);
+      \draw[flow] (master) -- (checker);
+      \draw[flow] (checker.south) -- ++(0,-.7)
+        -| node[pos=.25,below,font=\small] {contraejemplo y corte} (master.south);
+      \node[below=12mm of spatial,font=\scriptsize] {CP-SAT};
+      \node[below=12mm of pool,font=\scriptsize] {Enumerar y evaluar};
+        \node[below=12mm of master,font=\scriptsize] {CP-SAT};
+        \node[below=12mm of checker,font=\scriptsize] {CP-SAT};
+    \end{tikzpicture}
+  \end{center}
+  \vspace{7mm}
+  \begin{itemize}
+    \item El mapa y los muebles \textbf{quedan fijos} despu\'es de crear \(S^\star\).
+    \item El maestro decide \textbf{qu\'e pistas}; el checker busca
+      \textbf{otra colocaci\'on}.
+  \end{itemize}
+\end{frame}
+
+
+
+\section{Creaci\'on del tablero}
+
+\subsection{Datos y decisiones}
+
+\begin{frame}{Qu\'e decide el modelo espacial}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.27\textwidth}
+      \centering
+      \begin{tikzpicture}[x=.6cm,y=.6cm]
+        \draw[step=1,ink!35] (0,0) grid (4,4);
+        \draw[ink,very thick] (0,0) rectangle (4,4);
+      \end{tikzpicture}
+      \par\smallskip
+      \small Ejemplo: cuadr\'icula \(4\times4\).
+    \end{column}
+    \begin{column}{.7\textwidth}
+      \begin{block}{Decisiones conjuntas}
+        \begin{itemize}
+          \item A qu\'e habitaci\'on pertenece cada celda.
+          \item D\'onde se coloca cada mueble.
+          \item D\'onde se sit\'ua cada persona.
+        \end{itemize}
+      \end{block}
+      \small Presentaremos las variables al explicar cada decisi\'on
+      y sus restricciones.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Datos de la generaci\'on}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.5\textwidth}
+      \begin{block}{Entrada}
+        \begin{itemize}
+          \item Dimensiones \(H\times W\) y habitaciones \(K\).
+          \item Cobertura \(\alpha\) y tipos de muebles.
+          \item Semilla y familias de pistas.
+          \item Dificultad objetivo \(T\).
+          \item Nombres y ocupabilidad opcionales.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{.46\textwidth}
+      \[
+        n=\min(H,W)
+      \]
+      \[
+        E=\operatorname{round}\left(HW\,\frac{\alpha}{100}\right)
+      \]
+
+      \small \(n\): personas; \(E\): celdas de mueble.
+      \par\medskip
+      Tama\~nos, cantidades y ocupabilidad se fijan
+      \textbf{antes de resolver}.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\subsection{Construir habitaciones}
+
+\begin{frame}{Cada celda pertenece a una habitaci\'on}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sean \(N=HW\), \(V=\{0,\ldots,N-1\}\) las celdas y
+  \(\mathcal K=\{0,\ldots,K-1\}\) las habitaciones.
+  La variable \(r_c\) indica la habitaci\'on de la celda \(c\):
+  \[
+    r_c\in\mathcal K\quad\forall c\in V.
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{3mm}
+    \item Cada celda se asigna a \textbf{una sola} habitaci\'on.
+  \end{itemize}
+  \small Las habitaciones dividen la cuadr\'icula, sin solaparse
+  ni dejar celdas sin asignar.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,2) rectangle (2,4);
+      \fill[hall] (2,2) rectangle (4,4);
+      \fill[study] (0,0) rectangle (2,2);
+      \fill[lounge] (2,0) rectangle (4,2);
+      \examplegrid
+      \draw[ink,thick] (2,0)--(2,4) (0,2)--(4,2);
+      \node at (1,3) {\scriptsize 0};
+      \node at (3,3) {\scriptsize 1};
+      \node at (1,1) {\scriptsize 2};
+      \node at (3,1) {\scriptsize 3};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Una habitaci\'on por celda.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Semilla, padre y profundidad}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  \begin{itemize}
+    \setlength{\itemsep}{3mm}
+    \item \textbf{Semilla \(s_k\):} celda inicial fija de la habitaci\'on
+      \(k\); su profundidad es \(0\).
+    \item \textbf{Padre:} vecino ortogonal de la misma habitaci\'on
+      elegido por una celda que no es semilla.
+    \item \textbf{Profundidad:} n\'umero auxiliar que disminuye
+      estrictamente al pasar de una celda a su padre.
+  \end{itemize}
+  \small Las flechas apuntan al padre. Al seguirlas se llega a la semilla:
+  no puede haber ciclos ni celdas desconectadas. La profundidad
+  no tiene por qu\'e ser la distancia a la semilla.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,0) rectangle (2,2);
+      \examplegrid
+      \node at (.5,.5) {\scriptsize 0};
+      \node at (1.5,.5) {\scriptsize 1};
+      \node at (1.5,1.5) {\scriptsize 3};
+      \node at (.5,1.5) {\scriptsize 5};
+      \draw[-{Stealth[length=1.5mm]},teal] (1.3,.25)--(.7,.25);
+      \draw[-{Stealth[length=1.5mm]},teal] (1.75,1.3)--(1.75,.7);
+      \draw[-{Stealth[length=1.5mm]},teal] (.7,1.75)--(1.3,1.75);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Profundidades; \(0\) es la semilla.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Las habitaciones deben estar conectadas}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sean \(S=\{s_k:k\in\mathcal K\}\) las semillas y
+  \(\mathcal N(c)\) los vecinos ortogonales de \(c\).
+  \(a_{cu}\in\{0,1\}\) indica si \(c\) elige a \(u\) como padre;
+  \(d_c\in\{0,\ldots,N-1\}\) es su profundidad.
+  \[
+    \begin{aligned}
+      r_{s_k}=k,\quad d_{s_k}&=0 &&\forall k\in\mathcal K,\\
+      \sum_{u\in\mathcal N(c)}a_{cu}&=1 &&\forall c\notin S.
+    \end{aligned}
+  \]
+  \[
+    \begin{aligned}
+      a_{cu}=1\ &\Longrightarrow\ r_c=r_u,\quad d_c>d_u\\
+      &\forall c\notin S,\ u\in\mathcal N(c).
+    \end{aligned}
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \item Cada celda que no es semilla elige un vecino ortogonal
+      de su misma habitaci\'on.
+    \item Al seguir esos vecinos, la profundidad disminuye hasta
+      llegar a la semilla.
+  \end{itemize}
+  \small As\'i, todas las celdas llegan a su semilla: no hay islas.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,0) rectangle (2,2);
+      \examplegrid
+      \node at (.5,.5) {\scriptsize 0};
+      \node at (1.5,.5) {\scriptsize 1};
+      \node at (1.5,1.5) {\scriptsize 2};
+      \node at (.5,1.5) {\scriptsize 3};
+      \draw[-{Stealth[length=1.5mm]},teal] (1.3,.25)--(.7,.25);
+      \draw[-{Stealth[length=1.5mm]},teal] (1.75,1.3)--(1.75,.7);
+      \draw[-{Stealth[length=1.5mm]},teal] (.7,1.75)--(1.3,1.75);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Profundidades; flechas hacia el padre.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Las habitaciones no tienen huecos en filas ni columnas}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sea \(m_{kc}\in\{0,1\}\) el indicador de pertenencia:
+  \[
+    m_{kc}=1\ \Longleftrightarrow\ r_c=k.
+  \]
+  Para cada habitaci\'on \(k\) y cada fila o columna \(\ell\):
+  \[
+    (m_{kc})_{c\in\ell}\in 0^*1^*0^*.
+  \]
+  \small La secuencia se lee en orden a lo largo de \(\ell\).
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \item En cada fila, las celdas de una habitaci\'on forman
+      un \'unico tramo continuo.
+    \item Lo mismo ocurre en cada columna.
+  \end{itemize}
+  Se permiten formas en L, pero se evitan huecos y formas en U.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (1,1) rectangle (3,2);
+      \fill[kitchen] (1,2) rectangle (2,3);
+      \examplegrid
+      \draw[teal,thick] (0,1) rectangle (4,2);
+      \foreach \x/\v in {0/0,1/1,2/1,3/0}
+        \node at (\x+.5,1.5) {\scriptsize \v};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Una fila: \(0,1,1,0\).
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Variables para la forma de las habitaciones}
+  \small
+  Para cada habitaci\'on \(k\), fila \(j\) y columna \(\ell\):
+  \medskip
+
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}l p{.56\textwidth}@{}}
+    \(u_{kj},w_{k\ell}\in\{0,1\}\) &
+      Si \(k\) ocupa la fila \(j\) o la columna \(\ell\), respectivamente.\\
+    \(H_k\in\{1,\ldots,H\}\) & N\'umero de filas ocupadas por \(k\).\\
+    \(W_k\in\{1,\ldots,W\}\) & N\'umero de columnas ocupadas por \(k\).\\
+    \(A_k,B_k\in\{1,\ldots,N\}\) &
+      \'Area de \(k\) y de su rect\'angulo envolvente, respectivamente.\\
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{Dimensiones y \'area de cada habitaci\'on}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  \(u_{kj}\) y \(w_{k\ell}\) indican si \(k\) ocupa la fila \(j\)
+  o la columna \(\ell\):
+  \[
+    \begin{aligned}
+      u_{kj}&=\max_{\substack{c\in V\\\operatorname{fila}(c)=j}}m_{kc},\\
+      w_{k\ell}&=\max_{\substack{c\in V\\\operatorname{columna}(c)=\ell}}m_{kc}.
+    \end{aligned}
+  \]
+  Para cada habitaci\'on \(k\):
+  \[
+    \begin{aligned}
+      H_k&=\sum_j u_{kj},& W_k&=\sum_\ell w_{k\ell},\\
+      A_k&=\sum_{c\in V}m_{kc},& B_k&=H_kW_k.
+    \end{aligned}
+  \]
+  \small \(A_k\) cuenta celdas; \(B_k\) es el \'area del rect\'angulo
+  envolvente.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,0) rectangle (2,1);
+      \fill[kitchen] (0,1) rectangle (1,2);
+      \examplegrid
+      \draw[teal,very thick,dashed] (0,0) rectangle (2,2);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize \(H_k=W_k=2\), \(A_k=3\), \(B_k=4\).
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Las habitaciones deben ser compactas}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Para cada habitaci\'on \(k\), se exige:
+  \[
+    4A_k\geq3B_k,\qquad
+    2H_k\leq3W_k,\qquad 2W_k\leq3H_k
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{3mm}
+    \item Ocupan al menos el 75\,\% de su rect\'angulo envolvente.
+    \item La proporci\'on entre sus lados no supera \(1{,}5\).
+  \end{itemize}
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,0) rectangle (2,1);
+      \fill[kitchen] (0,1) rectangle (1,2);
+      \examplegrid
+      \draw[teal,very thick,dashed] (0,0) rectangle (2,2);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize \(3/4=75\%\); lados \(2\times2\).
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Como m\'aximo una habitaci\'on estrecha}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Para cada habitaci\'on \(k\), \(\sigma_k^{\mathrm f},
+  \sigma_k^{\mathrm c},t_k\in\{0,1\}\) indican si ocupa una sola fila,
+  una sola columna o cualquiera de las dos, respectivamente:
+  \[
+    \begin{aligned}
+      \sigma_k^{\mathrm f}=1&\ \Longleftrightarrow\ H_k=1,\\
+      \sigma_k^{\mathrm c}=1&\ \Longleftrightarrow\ W_k=1.
+    \end{aligned}
+  \]
+  \[
+    t_k=\max\{\sigma_k^{\mathrm f},\sigma_k^{\mathrm c}\},
+    \qquad \sum_{k\in\mathcal K}t_k\leq1.
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{4mm}
+    \item El l\'imite es conjunto para las dos orientaciones.
+    \item Con las restricciones de proporci\'on, la \'unica forma
+      estrecha posible es \(1\times1\).
+  \end{itemize}
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (1,1) rectangle (2,2);
+      \examplegrid
+      \draw[teal,very thick] (1,1) rectangle (2,2);
+      \node at (1.5,1.5) {\scriptsize \(k\)};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Habitaci\'on \(k\) de \(1\times1\).
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\subsection{Colocar muebles}
+
+\begin{frame}{Especificaci\'on de muebles antes de resolver}
+  Para cada tipo \(t=1,\ldots,J\), se fijan su tama\~no \(\ell_t\),
+  su cantidad \(n_t\) y su ocupabilidad. Deben cumplir:
+  \[
+    \ell_t\in\{1,2\},\qquad n_t\in\mathbb Z_{\geq1},
+    \qquad \sum_{t=1}^{J}\ell_t n_t=E.
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{3mm}
+    \item \(E\) cuenta celdas de mueble, no ejemplares.
+    \item Si \(J=0\), la especificaci\'on de muebles es vac\'ia.
+    \item La especificaci\'on se prepara antes del modelo CP-SAT;
+      no se modifica para recuperar factibilidad.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Cada mueble ocupa una huella v\'alida}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sea \(\mathcal I\) el conjunto de ejemplares y \(\mathcal A_i\)
+  las huellas permitidas para el mueble \(i\): una celda o dos
+  celdas ortogonalmente contiguas, seg\'un su tama\~no.
+  \(f_{iA}\in\{0,1\}\) indica si ocupa la huella \(A\).
+  \[
+    \begin{aligned}
+      \sum_{A\in\mathcal A_i}f_{iA}&=1 &&\forall i\in\mathcal I,\\
+      \sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\c\in A}}f_{iA}
+        &\leq1 &&\forall c\in V.
+    \end{aligned}
+  \]
+  \[
+    \begin{aligned}
+      f_{i,\{c,u\}}=1&\ \Longrightarrow\ r_c=r_u\\
+      &\forall i\in\mathcal I,\ \{c,u\}\in\mathcal A_i.
+    \end{aligned}
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \item Cada ejemplar se coloca una vez, en una o dos celdas
+      ortogonalmente contiguas.
+    \item Dos muebles no pueden solaparse.
+    \item Un mueble de dos celdas no puede atravesar una pared.
+  \end{itemize}
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,0) rectangle (2,4);
+      \fill[study] (2,0) rectangle (4,4);
+      \examplegrid
+      \draw[ink,very thick] (2,0)--(2,4);
+      \draw[teal,thick,fill=white,rounded corners=2pt]
+        (.15,2.2) rectangle (1.85,2.8);
+      \draw[teal,thick,fill=white,rounded corners=2pt]
+        (2.15,1.2) rectangle (2.85,1.8);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Muebles sin solaparse ni cruzar la pared.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Los muebles no ocupables bloquean celdas}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sea \(o_i\in\{0,1\}\) un dato que indica si el mueble \(i\) es
+  ocupable, y \(b_c\in\{0,1\}\) la variable que indica si \(c\)
+  est\'a bloqueada:
+  \[
+    b_c=\sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\c\in A,\ o_i=0}}f_{iA}
+    \quad\forall c\in V.
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{4mm}
+    \item Un mueble no ocupable bloquea todas las celdas de su huella.
+    \item Un mueble ocupable no bloquea sus celdas.
+    \item La ocupabilidad se fija antes de resolver.
+  \end{itemize}
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[teal!20!white] (1,2) rectangle (2,3);
+      \fill[kitchen] (2,1) rectangle (3,2);
+      \examplegrid
+      \node at (1.5,2.5) {\scriptsize B};
+      \node at (2.5,1.5) {\scriptsize O};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize B: bloqueada; O: ocupable.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\subsection{Colocar personas}
+
+\begin{frame}{Cada persona ocupa una posici\'on disponible}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sea \(P=\{1,\ldots,n\}\) el conjunto de personas.
+  Para cada \(p\in P\), \(y_p\in\{0,\ldots,H-1\}\) y
+  \(x_p\in\{0,\ldots,W-1\}\) son su fila y columna;
+  \(q_p\in V\) es el \'indice de su celda:
+  \[
+    q_p=Wy_p+x_p,\qquad b_{q_p}=0\quad\forall p.
+  \]
+  \[
+    \begin{aligned}
+      &\operatorname{AllDifferent}((y_p)_{p\in P}),\\
+      &\operatorname{AllDifferent}((x_p)_{p\in P}).
+    \end{aligned}
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \item Cada persona ocupa una celda no bloqueada.
+    \item Ninguna pareja de personas comparte fila ni columna.
+    \item Una persona puede coincidir con un mueble ocupable.
+  \end{itemize}
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \examplegrid
+      \node[person] at (.5,3.5) {A};
+      \node[person] at (1.5,2.5) {B};
+      \node[person] at (2.5,1.5) {C};
+      \node[person] at (3.5,.5) {D};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Filas y columnas distintas.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{La v\'ictima tiene un \'unico acompa\~nante}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Sea \(v=n\) la v\'ictima, \(\rho_p\in\mathcal K\) la habitaci\'on de \(p\)
+  y \(h_p\in\{0,1\}\), igual a 1 si \(p\) comparte habitaci\'on con \(v\):
+  \[
+    \begin{aligned}
+      \rho_p&=r_{q_p} &&\forall p\in P,\\
+      h_p=1&\ \Longleftrightarrow\ \rho_p=\rho_v &&\forall p\ne v.
+    \end{aligned}
+  \]
+  \[
+    \sum_{p\in P\setminus\{v\}}h_p=1.
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{2mm}
+    \item La \'ultima persona es la v\'ictima.
+    \item Exactamente otra persona comparte su habitaci\'on.
+  \end{itemize}
+  \small La habitaci\'on de la v\'ictima contiene exactamente dos personas.
+  El modelo no elige una variable independiente para el asesino.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,2) rectangle (2,4);
+      \fill[hall] (2,2) rectangle (4,4);
+      \fill[study] (0,0) rectangle (2,2);
+      \fill[lounge] (2,0) rectangle (4,2);
+      \examplegrid
+      \draw[ink,thick] (2,0)--(2,4) (0,2)--(4,2);
+      \node[person] at (.5,3.5) {A};
+      \node[person] at (1.5,2.5) {B};
+      \node[person] at (2.5,1.5) {C};
+      \node[person,fill=berry,text=ink] at (3.5,.5) {D};
+    \end{tikzpicture}
+    \par\smallskip\scriptsize D es la v\'ictima; C la acompa\~na.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\subsection{Objetivo y resultado}
+
+\begin{frame}{Contar habitaciones amuebladas}
+  \begin{columns}[T,onlytextwidth]
+  \begin{column}{.66\textwidth}
+  \small
+  Para cada celda \(c\) y habitaci\'on \(k\), las variables
+  \(z_c,e_{kc},g_k\in\{0,1\}\) indican si \(c\) contiene un mueble,
+  si adem\'as pertenece a \(k\) y si \(k\) est\'a amueblada:
+  \[
+    \begin{aligned}
+      z_c&=\sum_{\substack{i\in\mathcal I,\ A\in\mathcal A_i\\c\in A}}f_{iA},\\
+      e_{kc}&=\min(m_{kc},z_c),\qquad g_k=\max_{c\in V}e_{kc}.
+    \end{aligned}
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{4mm}
+    \item \(z_c=1\) si la celda contiene un mueble, ocupable o no.
+    \item \(e_{kc}=1\) si esa celda pertenece adem\'as a \(k\).
+    \item \(g_k=1\) si la habitaci\'on contiene alg\'un mueble.
+  \end{itemize}
+  \small Si no hay muebles, estos indicadores valen cero.
+  \end{column}
+  \begin{column}{.3\textwidth}
+    \centering
+    \begin{tikzpicture}[x=.55cm,y=.55cm]
+      \fill[kitchen] (0,2) rectangle (2,4);
+      \fill[hall] (2,2) rectangle (4,4);
+      \fill[study] (0,0) rectangle (2,2);
+      \fill[lounge] (2,0) rectangle (4,2);
+      \examplegrid
+      \draw[ink,thick] (2,0)--(2,4) (0,2)--(4,2);
+      \draw[teal,thick,fill=white] (.15,2.15) rectangle (.85,2.85);
+      \draw[teal,thick,fill=white] (2.15,.15) rectangle (2.85,.85);
+    \end{tikzpicture}
+    \par\smallskip\scriptsize Dos habitaciones amuebladas.
+  \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Funci\'on objetivo del modelo espacial}
+  Sean \(\delta(c,s_k)\) la distancia Manhattan a la semilla y
+  \(\epsilon_{kc}\in\{0,\ldots,9\}\) un coste aleatorio fijo.
+  \[
+    L=\sum_{k\in\mathcal K}\sum_{c\in V}
+      \bigl(\delta(c,s_k)+\epsilon_{kc}\bigr)m_{kc}.
+  \]
+  \[
+    \min\ L-M\sum_{k\in\mathcal K}g_k,\qquad
+    M=N\bigl(10(H+W-2)+9\bigr)+1.
+  \]
+  \begin{block}{Prioridad lexicogr\'afica espacial}
+    Primero maximizar las habitaciones amuebladas y, a igualdad,
+    minimizar \(L\). Una habitaci\'on amueblada adicional domina
+    cualquier cambio en \(L\).
+  \end{block}
+  \small Se permiten habitaciones sin objetos si faltan piezas o no caben.
+  Con el l\'imite de diez segundos puede obtenerse una soluci\'on factible,
+  sin demostrar el \'optimo espacial.
+\end{frame}
+\begin{frame}{Resultado}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.6\linewidth]{created_map.png}
+    \label{fig:created_map}
+\end{figure}
+\end{frame}
+\section{Pool de restricciones}
+\begin{frame}{De \(S^\star\) a un cat\'alogo de pistas verdaderas}
+  \small
+  \begin{tabular}{@{}p{.28\textwidth}p{.5\textwidth}r@{}}
+    \toprule
+    Familia & Ejemplo de significado & Peso\\
+    \midrule
+    \texttt{in} & Alicia est\'a en la cocina. & 1 o 2\\
+    \texttt{in\_coordinate} & Alicia est\'a en la fila 0. & 2\\
+    \texttt{next\_to} & Alicia est\'a junto a una mesa. & 2\\
+    \texttt{not\_next\_to} & Alicia no est\'a junto a ninguna mesa. & 3\\
+    \texttt{room\_relation} & Alicia comparte habitaci\'on con Bruno. & 2 o 3\\
+    \texttt{relative\_position} & Alicia est\'a al norte de Bruno. & 3 a 5\\
+    \texttt{any\_of} & O Alicia est\'a en la cocina, o en la fila 2. &
+      \(1+\sum d_i\)\\
+    \bottomrule
+  \end{tabular}
+  \vspace{3mm}
+  \begin{itemize}
+    \item Se enumeran las familias habilitadas; los ejemplos son ilustrativos.
+    \item Las pistas simples se conservan si son verdaderas en \(S^\star\).
+    \item No se generan pistas con la v\'ictima como sujeto.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Dos matices importantes del pool}
+  \begin{block}{Una pista tiene un solo protagonista}
+    En ``Alicia est\'a al norte de Bruno'', el sujeto es Alicia.
+    Mencionar a Bruno no cubre su requisito de tener una pista propia.
+  \end{block}
+  \vspace{2mm}
+  \begin{block}{Una disyunci\'on no es un XOR}
+    El generador combina dos condiciones del mismo sujeto cuando
+    exactamente una es cierta en \(S^\star\).
+    \[
+      \varphi_{r_1}(S^\star)+\varphi_{r_2}(S^\star)=1
+    \]
+    Pero al resolver se exige \(r_1\lor r_2\):
+    en otra colocaci\'on podr\'ian cumplirse ambas.
+  \end{block}
+  \small El pool se obtiene por enumeraci\'on y evaluaci\'on,
+  no con otro modelo CP-SAT.
+\end{frame}
+
+\end{document}

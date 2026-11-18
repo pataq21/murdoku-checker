@@ -1,0 +1,393 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,babel}
+
+\definecolor{ink}{HTML}{1C2732}
+\definecolor{teal}{HTML}{4C31FF}
+\definecolor{paper}{HTML}{FFFFFF}
+\colorlet{muted}{ink!70!paper}
+\definecolor{amber}{HTML}{CCFF90}
+\definecolor{berry}{HTML}{CCFF90}
+\colorlet{kitchen}{amber!40!paper}
+\colorlet{hall}{amber!65!paper}
+\colorlet{study}{teal!8!paper}
+\colorlet{lounge}{teal!16!paper}
+
+\setbeamercolor{normal text}{fg=ink,bg=paper}
+\setbeamercolor{structure}{fg=teal}
+\setbeamercolor{frametitle}{fg=ink}
+\setbeamercolor{title}{fg=ink}
+\setbeamercolor{subtitle}{fg=teal}
+\setbeamercolor{block title}{fg=white,bg=teal}
+\setbeamercolor{block body}{fg=ink,bg=teal!8!white}
+\setbeamercolor{block title alerted}{fg=ink,bg=berry}
+\setbeamercolor{block body alerted}{fg=ink,bg=berry!35!paper}
+\setbeamercolor{block title example}{fg=white,bg=muted}
+\setbeamercolor{block body example}{fg=ink,bg=muted!7!white}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamerfont{title}{size=\LARGE,series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+    \begin{beamercolorbox}[wd=.79\paperwidth,ht=3ex,dp=1.5ex,leftskip=1em]{normal text}
+      \scriptsize\color{muted}Murdoku%
+      \ifnum\value{section}>0\relax
+        \enspace/\enspace\insertsectionhead
+      \fi
+      \ifnum\value{subsection}>0\relax
+        \enspace/\enspace\insertsubsectionhead
+      \fi
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.21\paperwidth,ht=3ex,dp=1.5ex,rightskip=1em plus1fil]{normal text}
+      \hfill\scriptsize\insertframenumber\,/\,\inserttotalframenumber
+    \end{beamercolorbox}}}
+\setbeamersize{text margin left=8mm,text margin right=8mm}
+\setlength{\emergencystretch}{1em}
+
+\tikzset{
+  stage/.style={draw=teal,fill=white,rounded corners=3pt,
+    minimum height=12mm,text width=26mm,align=center,font=\small},
+  flow/.style={-{Stealth[length=2mm]},thick,draw=teal},
+  furniture/.style={draw=teal,fill=white!75!teal,rounded corners=2pt,
+    font=\tiny,inner sep=2pt},
+  person/.style={circle,fill=ink,text=white,font=\tiny\bfseries,
+    inner sep=2pt,minimum size=4.5mm},
+}
+
+\newcommand{\examplegrid}{%
+  \draw[step=1,ink!35] (0,0) grid (4,4);
+  \draw[ink,thick] (0,0) rectangle (4,4);
+}
+
+% 0: tablero vacio de personas; 1: objetivo; 2: alternativa ilustrativa.
+\newcommand{\murdokuboard}[1]{%
+  \begin{tikzpicture}[x=.85cm,y=-.85cm]
+    \fill[kitchen] (0,0) rectangle (2,2);
+    \fill[hall] (2,0) rectangle (4,2);
+    \fill[study] (0,2) rectangle (2,4);
+    \fill[lounge] (2,2) rectangle (4,4);
+    \draw[step=1,ink!18,thin] (0,0) grid (4,4);
+    \draw[ink,very thick] (0,0) rectangle (4,4);
+    \draw[ink,very thick] (2,0) -- (2,4);
+    \draw[ink,very thick] (0,2) -- (4,2);
+    \foreach \i in {0,1,2,3}{
+      \node[font=\scriptsize,text=muted] at (\i+.5,-.3) {\i};
+      \node[font=\scriptsize,text=muted] at (-.3,\i+.5) {\i};
+    }
+    \node[anchor=north west,font=\tiny,text=muted] at (.05,.04) {Cocina};
+    \node[anchor=north west,font=\tiny,text=muted] at (2.05,.04) {Entrada};
+    \node[anchor=north west,font=\tiny,text=muted] at (.05,2.04) {Estudio};
+    \node[anchor=north west,font=\tiny,text=muted] at (2.05,2.04) {Sal\'on};
+    \node[furniture,draw=amber,dashed,fill=hall] at (1.5,.45) {Mesa};
+    \node[furniture] at (1.5,1.4) {Silla};
+    \draw[teal,fill=white!75!teal,rounded corners=2pt]
+      (2.1,2.25) rectangle (3.9,2.7);
+    \node[font=\tiny] at (3,2.45) {Sof\'a};
+    \node[furniture,draw=amber,dashed,fill=hall] at (.5,3.4) {Armario};
+    \ifnum#1=1
+      \node[person] at (.65,.72) {A};
+      \node[person] at (1.65,1.72) {B};
+    \fi
+    \ifnum#1=2
+      \node[person] at (1.65,1.72) {A};
+      \node[person] at (.65,.72) {B};
+    \fi
+    \ifnum#1>0
+      \node[person] at (2.65,2.78) {C};
+      \node[person,fill=berry,text=ink] at (3.65,3.72) {D};
+    \fi
+  \end{tikzpicture}%
+}
+
+\title{Murdoku Creator}
+\subtitle{Parte 2: Selecci\'on de pistas y demostraci\'on de unicidad}
+\date{}
+
+\begin{document}
+
+\begin{frame}[plain]
+  \vspace{8mm}
+  {\small\color{teal}\bfseries OPTIMIZACIÓN}
+  \vspace{4mm}
+  \titlepage
+
+\end{frame}
+
+\begin{frame}{\'Indice}
+  \small
+  \tableofcontents[sectionstyle=show/show,subsectionstyle=show/show/show]
+\end{frame}
+
+\section{Construcci\'on del problema}
+
+\begin{frame}{El maestro decide qu\'e pistas entregar}
+  Sea \(\mathcal R\) el pool y \(m=|\mathcal R|\).
+  \[
+    x_r\in\{0,1\},\qquad
+    x_r=1\ \Longleftrightarrow\ \text{seleccionar la pista }r
+  \]
+  \[
+    D(x)=\sum_{r\in\mathcal R}d_rx_r,\qquad
+    C(x)=\sum_{r\in\mathcal R}x_r
+  \]
+  \begin{block}{Cobertura narrativa}
+    Cada persona distinta de la v\'ictima debe ser sujeto de al menos una pista:
+    \[
+      \sum_{\substack{r\in\mathcal R\\p(r)=p}}x_r\geq1
+      \qquad \forall p\neq v.
+    \]
+  \end{block}
+  \small El maestro inicial a\'un no sabe qu\'e selecciones son \'unicas.
+\end{frame}
+
+\begin{frame}{Acercarse a la dificultad y despu\'es reducir pistas}
+  \[
+    e=|D(x)-T|
+  \]
+  \[
+    \boxed{\min\ (m+1)e+C(x)}
+  \]
+  \begin{itemize}
+    \setlength{\itemsep}{3mm}
+    \item \textbf{Primero:} minimizar el error respecto a \(T\).
+    \item \textbf{Despu\'es:} minimizar el n\'umero de pistas.
+    \item Como \(C(x)\leq m\), una mejora de una unidad en \(e\)
+      domina cualquier cambio en \(C(x)\).
+  \end{itemize}
+  \begin{alertblock}{No es una igualdad obligatoria}
+    Puede que no exista un puzzle \'unico con dificultad exactamente \(T\).
+    Adem\'as, los pesos son una medida dise\~nada, no dificultad humana validada.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Ejemplo de la prioridad entre dos objetivos}
+  \begin{center}
+    Objetivo ilustrativo: \(T=15\), pool de \(m=20\) pistas.
+    \medskip
+
+    \begin{tabular}{lrrrr}
+      \toprule
+      Selecci\'on & \(D(x)\) & \(e\) & \(C(x)\) & \(21e+C(x)\)\\
+      \midrule
+      A & 14 & 1 & 4 & 25\\
+      B & 15 & 0 & 7 & 7\\
+      \textbf{C} & \textbf{15} & \textbf{0} & \textbf{5} & \textbf{5}\\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+  \vspace{4mm}
+  \begin{itemize}
+    \item B mejora a A: el menor error importa m\'as que usar pocas pistas.
+    \item C mejora a B: con el mismo error, entrega menos pistas.
+    \item Todav\'ia falta comprobar la \textbf{unicidad} de cada candidata.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{El checker intenta encontrar otra respuesta}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.48\textwidth}
+      \begin{block}{Se conserva}
+        \begin{itemize}
+          \item El mismo mapa y los mismos muebles.
+          \item Las mismas personas.
+          \item Las reglas base del checker.
+          \item Todas las pistas seleccionadas.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{.48\textwidth}
+      \begin{exampleblock}{Se proh\'ibe solo \(S^\star\)}
+        Si \(q_{p,c_p^\star}\) indica que \(p\) conserva su celda objetivo:
+        \[
+          \sum_p q_{p,c_p^\star}\leq |P|-1.
+        \]
+        Al menos una persona debe cambiar de posici\'on.
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \vspace{4mm}
+  \centering
+  \textbf{Hay alternativa:} las pistas no bastan.\qquad
+  \textbf{No hay alternativa:} soluci\'on \'unica.
+\end{frame}
+
+\begin{frame}{Un contraejemplo explica qu\'e informaci\'on falta}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.38\textwidth}
+      \centering
+      \murdokuboard{2}
+      \par\smallskip
+      \small Alternativa ilustrativa:\\
+      Alicia y Bruno intercambian posiciones.
+    \end{column}
+    \begin{column}{.58\textwidth}
+      \small
+      Siguen siendo ciertas las pistas seleccionadas:
+      \begin{itemize}
+        \item Alicia est\'a en la cocina.
+        \item Bruno est\'a en la cocina.
+        \item Carla est\'a en la columna 2.
+      \end{itemize}
+      \begin{block}{Pistas del pool que la rompen}
+        \(r_4\): Alicia est\'a en la fila 0.\\
+        \(r_5\): Bruno est\'a sobre una silla.
+        \[
+          x_{r_4}+x_{r_5}\geq1
+        \]
+      \end{block}
+      No se obliga a elegir ambas, ni se afirma que este corte
+      elimine todas las alternativas.
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{Benders l\'ogico: aprender de cada alternativa}
+  \[
+    B_k=\{r\in\mathcal R:\varphi_r(S_{\mathrm{alt}}^{(k)})=0\}
+  \]
+  \[
+    \boxed{\sum_{r\in B_k}x_r\geq1}
+  \]
+  \begin{enumerate}
+    \setlength{\itemsep}{2mm}
+    \item Resolver el maestro hasta demostrar su \'optimo.
+    \item Buscar una alternativa que cumpla las pistas seleccionadas.
+    \item Si aparece, evaluar \textbf{todo el pool} sobre ella.
+    \item Exigir alguna pista que la descarte y volver al maestro.
+    \item Si no hay alternativa, terminar.
+  \end{enumerate}
+  \small Las pistas anteriores no tienen por qu\'e conservarse.
+  Si \(B_k=\varnothing\), el pool completo es insuficiente y se informa de un error.
+\end{frame}
+
+\begin{frame}{Por qu\'e el resultado final es \'optimo}
+  \begin{enumerate}
+    \setlength{\itemsep}{4mm}
+    \item Cada alternativa encontrada tiene que ser descartada por
+      \textbf{cualquier} selecci\'on que haga \'unico a \(S^\star\).
+    \item Cada corte expresa una condici\'on necesaria para conseguirlo.
+    \item El maestro mantiene una relajaci\'on y se resuelve a optimalidad.
+    \item Si su \'optimo ya no admite alternativas, es tambi\'en
+      \'optimo entre las selecciones \'unicas del pool.
+  \end{enumerate}
+  \begin{block}{Garant\'ia precisa}
+    Unicidad y m\'inimo lexicogr\'afico de
+    \(\bigl(|D(x)-T|,C(x)\bigr)\), con mapa, personas y pool fijos.
+  \end{block}
+\end{frame}
+
+\begin{frame}{L\'imites que conviene contar al presentar el resultado}
+  \begin{itemize}
+    \setlength{\itemsep}{4mm}
+    \item El checker \textbf{no incorpora autom\'aticamente} la condici\'on
+      de los dos ocupantes de la habitaci\'on de la v\'ictima.
+      La unicidad se demuestra con su modelo base y las pistas seleccionadas.
+    \item La frase HTML sobre la v\'ictima es informativa:
+      no suma dificultad ni a\~nade una restricci\'on al checker.
+    \item La fase espacial acepta una soluci\'on factible;
+      el maestro requiere un \'optimo demostrado.
+    \item La selecci\'on no tiene un l\'imite global de tiempo o iteraciones.
+      Un estado inconcluso no se presenta como unicidad.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Qu\'e recibe finalmente el jugador}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{.48\textwidth}
+      \begin{block}{Un \'unico \texttt{puzzle.html}}
+        \begin{itemize}
+          \item Tablero y pistas seleccionadas.
+          \item Pistas a la izquierda; leyendas debajo.
+          \item Posiciones inicialmente ocultas.
+          \item Bot\'on para mostrar u ocultar la soluci\'on.
+          \item Uso sin conexi\'on.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{.48\textwidth}
+      \begin{exampleblock}{Registro de la ejecuci\'on}
+        \begin{itemize}
+          \item Configuraci\'on y semilla efectivas.
+          \item Soluci\'on objetivo y muebles.
+          \item Pool y subconjunto elegido.
+          \item Dificultad, error e iteraciones.
+          \item Tiempos y estado de los solvers.
+        \end{itemize}
+      \end{exampleblock}
+    \end{column}
+  \end{columns}
+  \small La soluci\'on est\'a integrada en el HTML: el bot\'on
+  evita verla por accidente, pero no protege el c\'odigo fuente.
+\end{frame}
+
+\begin{frame}{Cuatro ideas para llevarse}
+  \begin{enumerate}
+    \setlength{\itemsep}{5mm}
+    \item \textbf{Murdoku:} deducir posiciones a partir de reglas espaciales.
+    \item \textbf{Enfoque inverso:} crear la respuesta antes que las pistas.
+    \item \textbf{Creaci\'on:} construir un tablero factible y un pool verdadero.
+    \item \textbf{Construcci\'on del problema:} seleccionar, buscar contraejemplos
+      y refinar hasta demostrar unicidad y optimalidad.
+  \end{enumerate}
+  \vspace{4mm}
+  \centering
+  \large\color{teal}No basta con generar pistas correctas:\\
+  deben dejar una sola respuesta.
+\end{frame}
+
+\section{Anexo t\'ecnico}
+
+\begin{frame}{Anexo: modelo maestro compacto}
+  \small
+  \[
+    \begin{aligned}
+      \min\quad &(m+1)e+\sum_{r\in\mathcal R}x_r\\
+      \text{sujeto a}\quad
+      &\sum_{\substack{r\in\mathcal R\\p(r)=p}}x_r\geq1
+        &&\forall p\neq v,\\
+      &e=\left|\sum_{r\in\mathcal R}d_rx_r-T\right|,\\
+      &\sum_{r\in B_j}x_r\geq1
+        &&\forall\text{ cortes aprendidos }j,\\
+      &x_r\in\{0,1\},\quad e\in\mathbb Z_{\geq0}.
+    \end{aligned}
+  \]
+  \begin{itemize}
+    \item \(D_{\max}=\sum_r d_r\).
+    \item Dominio finito usado para el error:
+      \(e\leq\max\{T,|D_{\max}-T|\}\).
+    \item \texttt{add\_abs\_equality} implementa la igualdad absoluta.
+    \item Solo se acepta \texttt{OPTIMAL} del maestro.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Anexo: checker con una soluci\'on objetivo excluida}
+  \small
+  \(U\): celdas ocupables;\quad
+  \(q_{pc}=1\): la persona \(p\) ocupa \(c\).
+  \[
+    \begin{aligned}
+      \sum_{c\in U}q_{pc}&=1 &&\forall p,\\
+      \sum_{\substack{p,c\in U\\i(c)=i}}q_{pc}&\leq1
+        &&\forall\text{ fila }i,\\
+      \sum_{\substack{p,c\in U\\j(c)=j}}q_{pc}&\leq1
+        &&\forall\text{ columna }j,\\
+      \varphi_r(q)&=1 &&\forall r\text{ seleccionado},\\
+      \sum_p q_{p,c_p^\star}&\leq |P|-1.
+    \end{aligned}
+  \]
+  Sin objetivo de optimizaci\'on: basta una alternativa.
+  Antes de excluir \(S^\star\), se comprueba que sea factible.
+  \par\medskip
+  \textbf{Referencias:}
+  \texttt{generate-puzzle.tex},
+  \texttt{generate-solution.tex} y
+  \texttt{verify-puzzle.tex}.
+\end{frame}
+
+\end{document}

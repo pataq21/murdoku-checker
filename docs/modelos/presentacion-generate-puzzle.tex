@@ -36,7 +36,13 @@
 \setbeamertemplate{footline}{%
   \leavevmode\hbox{%
     \begin{beamercolorbox}[wd=.79\paperwidth,ht=3ex,dp=1.5ex,leftskip=1em]{normal text}
-      \scriptsize\color{muted}Murdoku\enspace/\enspace\insertsectionhead
+      \scriptsize\color{muted}Murdoku%
+      \ifnum\value{section}>0\relax
+        \enspace/\enspace\insertsectionhead
+      \fi
+      \ifnum\value{subsection}>0\relax
+        \enspace/\enspace\insertsubsectionhead
+      \fi
     \end{beamercolorbox}%
     \begin{beamercolorbox}[wd=.21\paperwidth,ht=3ex,dp=1.5ex,rightskip=1em plus1fil]{normal text}
       \hfill\scriptsize\insertframenumber\,/\,\inserttotalframenumber
@@ -113,9 +119,12 @@
 
 \end{frame}
 
+\begin{frame}{\'Indice}
+  \small
+  \tableofcontents[sectionstyle=show/show,subsectionstyle=show/show/show]
+\end{frame}
 
-
-\section{1. Qu\'e es un Murdoku}
+\section{Qu\'e es un Murdoku}
 \begin{frame}{Ejemplo de Murdoku}
     \begin{figure}
         \centering
@@ -197,7 +206,7 @@
   \end{block}
 \end{frame}
 
-\section{2. Arquitectura}
+\section{Arquitectura}
 
 \begin{frame}{Arquitectura: tres responsabilidades}
   \begin{columns}[T,onlytextwidth]
@@ -300,7 +309,7 @@
   \end{exampleblock}
 \end{frame}
 
-\section{3. Enfoque}
+\section{Enfoque}
 
 \begin{frame}{Enfoque. Tres modelos}
   \begin{center}
@@ -330,7 +339,9 @@
 
 
 
-\section{4. Creaci\'on del tablero}
+\section{Creaci\'on del tablero}
+
+\subsection{Datos y decisiones}
 
 \begin{frame}{Qu\'e decide el modelo espacial}
   \begin{columns}[T,onlytextwidth]
@@ -385,6 +396,8 @@
     \end{column}
   \end{columns}
 \end{frame}
+
+\subsection{Construir habitaciones}
 
 \begin{frame}{Cada celda pertenece a una habitaci\'on}
   \begin{columns}[T,onlytextwidth]
@@ -656,6 +669,8 @@
   \end{columns}
 \end{frame}
 
+\subsection{Colocar muebles}
+
 \begin{frame}{Especificaci\'on de muebles antes de resolver}
   Para cada tipo \(t=1,\ldots,J\), se fijan su tama\~no \(\ell_t\),
   su cantidad \(n_t\) y su ocupabilidad. Deben cumplir:
@@ -750,6 +765,8 @@
   \end{columns}
 \end{frame}
 
+\subsection{Colocar personas}
+
 \begin{frame}{Cada persona ocupa una posici\'on disponible}
   \begin{columns}[T,onlytextwidth]
   \begin{column}{.66\textwidth}
@@ -830,6 +847,8 @@
   \end{columns}
 \end{frame}
 
+\subsection{Objetivo y resultado}
+
 \begin{frame}{Contar habitaciones amuebladas}
   \begin{columns}[T,onlytextwidth]
   \begin{column}{.66\textwidth}
@@ -873,7 +892,7 @@
   \(\epsilon_{kc}\in\{0,\ldots,9\}\) un coste aleatorio fijo.
   \[
     L=\sum_{k\in\mathcal K}\sum_{c\in V}
-      \bigl(10\delta(c,s_k)+\epsilon_{kc}\bigr)m_{kc}.
+      \bigl(\delta(c,s_k)+\epsilon_{kc}\bigr)m_{kc}.
   \]
   \[
     \min\ L-M\sum_{k\in\mathcal K}g_k,\qquad
@@ -939,7 +958,7 @@
   no con otro modelo CP-SAT.
 \end{frame}
 
-\section{5. Construcci\'on del problema}
+\section{Construcci\'on del problema}
 
 \begin{frame}{El maestro decide qu\'e pistas entregar}
   Sea \(\mathcal R\) el pool y \(m=|\mathcal R|\).
